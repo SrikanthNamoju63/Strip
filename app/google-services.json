@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "465857212603",
+    "firebase_url": "https://strip-ad6e6-default-rtdb.firebaseio.com",
+    "project_id": "strip-ad6e6",
+    "storage_bucket": "strip-ad6e6.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:465857212603:android:fd683929e49ed0a5bab99e",
+        "android_client_info": {
+          "package_name": "com.example.strip"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCkD9pn7Mm9Kgbme76GO7Jtswmr4oM9LQw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

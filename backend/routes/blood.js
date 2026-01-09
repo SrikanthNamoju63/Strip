@@ -1,0 +1,115 @@
+const express = require('express');
+const router = express.Router();
+const BloodDonor = require('../models/BloodDonor');
+
+// Register or update donor
+router.post('/register-donor', async (req, res) => {
+    const {
+        user_id,
+        blood_group,
+        location,
+        phone,
+        smoker,
+        alcohol_consumer,
+        last_donation_date
+    } = req.body;
+
+    if (!user_id || !blood_group) return res.status(400).json({ success: false, error: "user_id/blood_group required" });
+
+    try {
+        let isEligible = true;
+        let reason = '';
+
+        if (smoker === 'Yes' || alcohol_consumer === 'Yes') {
+            isEligible = false;
+            reason = 'Ineligible due to lifestyle factors';
+        }
+
+        if (last_donation_date) {
+            const daysDiff = (new Date() - new Date(last_donation_date)) / (1000 * 60 * 60 * 24);
+            if (daysDiff < 90) {
+                isEligible = false;
+                reason = 'Recent donation';
+            }
+        }
+
+        let city = '', state = '';
+        if (location) {
+            const parts = location.split(',');
+            city = parts[0]?.trim();
+            state = parts[1]?.trim();
+        }
+
+        await BloodDonor.findOneAndUpdate(
+            { user_id: user_id },
+            {
+                blood_group, city, state, phone,
+                is_eligible: isEligible,
+                last_donation_date: last_donation_date,
+                updated_at: new Date()
+            },
+            { upsert: true, new: true }
+        );
+
+        res.json({
+            success: true,
+            message: isEligible ? "Donor registered" : "Donor registered (Ineligible: " + reason + ")",
+            is_eligible: isEligible,
+            reason
+        });
+
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Search donors
+router.get('/donors', async (req, res) => {
+    const { blood_group, location } = req.query;
+
+    try {
+        const query = { is_available: true, is_eligible: true };
+        if (blood_group) query.blood_group = blood_group;
+        if (location) query.city = { $regex: location, $options: 'i' };
+
+        const donors = await BloodDonor.find(query).limit(100).populate('user_details', 'full_name phone');
+
+        // Map to flat structure if needed, or return as is (Android might expect specific fields)
+        // Android expects: name, user_phone, blood_group, city, state, phone
+        const results = donors.map(d => ({
+            name: d.user_details ? d.user_details.full_name : 'Unknown',
+            user_phone: d.user_details ? d.user_details.phone : '',
+            blood_group: d.blood_group,
+            city: d.city,
+            state: d.state,
+            phone: d.phone
+        }));
+
+        res.json({ success: true, donors: results, count: results.length });
+
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+router.post('/update-availability', async (req, res) => {
+    const { user_id, is_available } = req.body;
+    try {
+        await BloodDonor.findOneAndUpdate({ user_id }, { is_available });
+        res.json({ success: true, message: "Updated" });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+router.post('/delete-donor', async (req, res) => {
+    const { user_id } = req.body;
+    try {
+        await BloodDonor.deleteOne({ user_id });
+        res.json({ success: true, message: "Deleted" });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+module.exports = router;
