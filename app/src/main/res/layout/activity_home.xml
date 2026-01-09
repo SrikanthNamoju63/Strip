@@ -147,7 +147,7 @@
             <ImageView
                 android:layout_width="40dp"
                 android:layout_height="40dp"
-                android:src="@drawable/ic_blood"
+                android:src="@drawable/ic_blood_google"
                 android:contentDescription="Blood Finder"/>
             <TextView
                 android:layout_width="wrap_content"
@@ -169,7 +169,7 @@
             <ImageView
                 android:layout_width="40dp"
                 android:layout_height="40dp"
-                android:src="@drawable/ic_health"
+                android:src="@drawable/ic_health_google"
                 android:contentDescription="Health Predict"/>
             <TextView
                 android:layout_width="wrap_content"
@@ -191,7 +191,7 @@
             <ImageView
                 android:layout_width="40dp"
                 android:layout_height="40dp"
-                android:src="@drawable/ic_doctor"
+                android:src="@drawable/ic_doctor_google"
                 android:contentDescription="Doctor Appointment"/>
             <TextView
                 android:layout_width="wrap_content"

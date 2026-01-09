@@ -19,49 +19,124 @@ public class Appointment {
     private String contacted_at;
     private String expires_at;
     private String token_created_at;
+    private int token_number;
 
     // Default constructor
-    public Appointment() {}
+    public Appointment() {
+    }
 
     // Getters and setters
-    public int getAppointment_id() { return appointment_id; }
-    public void setAppointment_id(int appointment_id) { this.appointment_id = appointment_id; }
+    public int getAppointment_id() {
+        return appointment_id;
+    }
 
-    public String getDoctor_name() { return doctor_name; }
-    public void setDoctor_name(String doctor_name) { this.doctor_name = doctor_name; }
+    public void setAppointment_id(int appointment_id) {
+        this.appointment_id = appointment_id;
+    }
 
-    public String getSpecialization() { return specialization; }
-    public void setSpecialization(String specialization) { this.specialization = specialization; }
+    public int getToken_number() {
+        return token_number;
+    }
 
-    public String getHospital_name() { return hospital_name; }
-    public void setHospital_name(String hospital_name) { this.hospital_name = hospital_name; }
+    public void setToken_number(int token_number) {
+        this.token_number = token_number;
+    }
 
-    public String getAppointment_date() { return appointment_date; }
-    public void setAppointment_date(String appointment_date) { this.appointment_date = appointment_date; }
+    public String getDoctor_name() {
+        return doctor_name;
+    }
 
-    public String getStatus() { return status; }
-    public void setStatus(String status) { this.status = status; }
+    public void setDoctor_name(String doctor_name) {
+        this.doctor_name = doctor_name;
+    }
 
-    public String getSymptoms() { return symptoms; }
-    public void setSymptoms(String symptoms) { this.symptoms = symptoms; }
+    public String getSpecialization() {
+        return specialization;
+    }
 
-    public String getAppointment_type() { return appointment_type; }
-    public void setAppointment_type(String appointment_type) { this.appointment_type = appointment_type; }
+    public void setSpecialization(String specialization) {
+        this.specialization = specialization;
+    }
 
-    public String getNotes() { return notes; }
-    public void setNotes(String notes) { this.notes = notes; }
+    public String getHospital_name() {
+        return hospital_name;
+    }
 
-    public String getCreated_at() { return created_at; }
-    public void setCreated_at(String created_at) { this.created_at = created_at; }
+    public void setHospital_name(String hospital_name) {
+        this.hospital_name = hospital_name;
+    }
 
-    public String getContacted_at() { return contacted_at; }
-    public void setContacted_at(String contacted_at) { this.contacted_at = contacted_at; }
+    public String getAppointment_date() {
+        return appointment_date;
+    }
 
-    public String getExpires_at() { return expires_at; }
-    public void setExpires_at(String expires_at) { this.expires_at = expires_at; }
+    public void setAppointment_date(String appointment_date) {
+        this.appointment_date = appointment_date;
+    }
 
-    public String getToken_created_at() { return token_created_at; }
-    public void setToken_created_at(String token_created_at) { this.token_created_at = token_created_at; }
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
+
+    public String getSymptoms() {
+        return symptoms;
+    }
+
+    public void setSymptoms(String symptoms) {
+        this.symptoms = symptoms;
+    }
+
+    public String getAppointment_type() {
+        return appointment_type;
+    }
+
+    public void setAppointment_type(String appointment_type) {
+        this.appointment_type = appointment_type;
+    }
+
+    public String getNotes() {
+        return notes;
+    }
+
+    public void setNotes(String notes) {
+        this.notes = notes;
+    }
+
+    public String getCreated_at() {
+        return created_at;
+    }
+
+    public void setCreated_at(String created_at) {
+        this.created_at = created_at;
+    }
+
+    public String getContacted_at() {
+        return contacted_at;
+    }
+
+    public void setContacted_at(String contacted_at) {
+        this.contacted_at = contacted_at;
+    }
+
+    public String getExpires_at() {
+        return expires_at;
+    }
+
+    public void setExpires_at(String expires_at) {
+        this.expires_at = expires_at;
+    }
+
+    public String getToken_created_at() {
+        return token_created_at;
+    }
+
+    public void setToken_created_at(String token_created_at) {
+        this.token_created_at = token_created_at;
+    }
 
     // Helper method to check if appointment is expired - FIXED DATE PARSING
     public boolean isExpired() {
@@ -107,7 +182,8 @@ public class Appointment {
             Date currentDate = new Date();
 
             long diffInMillis = expiryDate.getTime() - currentDate.getTime();
-            if (diffInMillis <= 0) return 0;
+            if (diffInMillis <= 0)
+                return 0;
 
             return TimeUnit.DAYS.convert(diffInMillis, TimeUnit.MILLISECONDS);
         } catch (Exception e) {

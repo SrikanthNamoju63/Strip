@@ -134,6 +134,12 @@ public class PatientDetailsActivity extends AppCompatActivity {
             return false;
         }
 
+        if (contact.length() != 10) {
+            etContact.setError("Contact number must be 10 digits");
+            etContact.requestFocus();
+            return false;
+        }
+
         if (email.isEmpty()) {
             etEmail.setError("Please enter your email");
             etEmail.requestFocus();

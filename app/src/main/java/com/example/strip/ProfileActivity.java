@@ -251,7 +251,13 @@ public class ProfileActivity extends AppCompatActivity {
         tvUserId.setText("ID: " + formattedUserId);
 
         // Personal Information with fallbacks
-        tvAge.setText(profile.getAge() != null ? profile.getAge() + " years" : "Not set");
+        String ageText = "Not set";
+        if (profile.getAge() != null) {
+            ageText = profile.getAge() + " years";
+        } else if (profile.getDob() != null && !profile.getDob().isEmpty()) {
+            ageText = calculateAge(profile.getDob()) + " years";
+        }
+        tvAge.setText(ageText);
         tvGender.setText(profile.getGender() != null ? profile.getGender() : "Not set");
         tvPhone.setText(profile.getPhone() != null ? profile.getPhone() : "Not set");
         tvBloodGroup.setText(profile.getBlood_group() != null ? profile.getBlood_group() : "Not set");
@@ -325,32 +331,57 @@ public class ProfileActivity extends AppCompatActivity {
             String status = appointment.getStatus() != null ? appointment.getStatus() : "Scheduled";
             map.put("status", status);
 
+            // Format token number, fallback to "-" if 0
+            int token = appointment.getToken_number();
+            map.put("token", token > 0 ? String.valueOf(token) : "-");
+
             appointmentData.add(map);
         }
 
-        String[] from = { "doctor", "specialization", "hospital", "date", "status" };
-        int[] to = { R.id.tvDoctorName, R.id.tvSpecialization, R.id.tvHospital, R.id.tvAppointmentDate, R.id.tvStatus };
+        String[] from = { "doctor", "specialization", "hospital", "date", "status", "token" };
+        int[] to = { R.id.tvDoctorName, R.id.tvSpecialization, R.id.tvHospital, R.id.tvAppointmentDate, R.id.tvStatus,
+                R.id.tvToken };
 
         SimpleAdapter adapter = new SimpleAdapter(this, appointmentData, R.layout.item_appointment, from, to);
         lvAppointments.setAdapter(adapter);
     }
 
     private void showAppointmentDetails(Appointment appointment) {
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_appointment_details, null);
+
+        TextView tvDetailDoctorName = dialogView.findViewById(R.id.tvDetailDoctorName);
+        TextView tvDetailSpecialization = dialogView.findViewById(R.id.tvDetailSpecialization);
+        TextView tvDetailHospital = dialogView.findViewById(R.id.tvDetailHospital);
+        TextView tvDetailDate = dialogView.findViewById(R.id.tvDetailDate);
+        TextView tvDetailStatus = dialogView.findViewById(R.id.tvDetailStatus);
+        TextView tvDetailToken = dialogView.findViewById(R.id.tvDetailToken);
+        ImageView ivQrCode = dialogView.findViewById(R.id.ivQrCode);
+
+        // Populate text
+        tvDetailDoctorName.setText(appointment.getDoctor_name() != null ? appointment.getDoctor_name() : "Unknown");
+        tvDetailSpecialization
+                .setText(appointment.getSpecialization() != null ? appointment.getSpecialization() : "General");
+        tvDetailHospital
+                .setText(appointment.getHospital_name() != null ? appointment.getHospital_name() : "Unknown Hospital");
+        tvDetailDate.setText(appointment.getFormattedDateTime());
+        tvDetailStatus.setText("Status: " + (appointment.getStatus() != null ? appointment.getStatus() : "Scheduled"));
+
+        int token = appointment.getToken_number();
+        tvDetailToken.setText(token > 0 ? String.valueOf(token) : "-");
+
+        // Generate QR Code via API
+        String qrContent = "Appt:" + appointment.getAppointment_id() + ";" + appointment.getToken_number();
+        String qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=" + qrContent;
+
+        Glide.with(this)
+                .load(qrUrl)
+                .diskCacheStrategy(DiskCacheStrategy.ALL)
+                .placeholder(R.drawable.ic_launcher_background)
+                .into(ivQrCode);
+
         new androidx.appcompat.app.AlertDialog.Builder(this)
-                .setTitle("Appointment Details")
-                .setMessage(
-                        "Doctor: " + (appointment.getDoctor_name() != null ? appointment.getDoctor_name() : "Unknown")
-                                + "\n" +
-                                "Specialization: "
-                                + (appointment.getSpecialization() != null ? appointment.getSpecialization()
-                                        : "General")
-                                + "\n" +
-                                "Hospital: "
-                                + (appointment.getHospital_name() != null ? appointment.getHospital_name() : "Unknown")
-                                + "\n" +
-                                "Date: " + appointment.getFormattedDateTime() + "\n" +
-                                "Status: " + (appointment.getStatus() != null ? appointment.getStatus() : "Scheduled"))
-                .setPositiveButton("OK", null)
+                .setView(dialogView)
+                .setPositiveButton("Close", null)
                 .show();
     }
 
@@ -395,6 +426,39 @@ public class ProfileActivity extends AppCompatActivity {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == 1 && resultCode == RESULT_OK) {
             loadUserProfile(); // Refresh profile after editing
+        }
+    }
+
+    private int calculateAge(String dobString) {
+        try {
+            // Check if DOB format is valid
+            if (dobString == null || dobString.length() < 10)
+                return 0;
+
+            // Handle full ISO date format if necessary, but simple YYYY-MM-DD parsing:
+            String[] parts = dobString.split("T")[0].split("-");
+            if (parts.length != 3)
+                return 0;
+
+            int year = Integer.parseInt(parts[0]);
+            int month = Integer.parseInt(parts[1]);
+            int day = Integer.parseInt(parts[2]);
+
+            Calendar dob = Calendar.getInstance();
+            dob.set(year, month - 1, day);
+
+            Calendar today = Calendar.getInstance();
+
+            int age = today.get(Calendar.YEAR) - dob.get(Calendar.YEAR);
+
+            if (today.get(Calendar.DAY_OF_YEAR) < dob.get(Calendar.DAY_OF_YEAR)) {
+                age--;
+            }
+
+            return age;
+        } catch (Exception e) {
+            Log.e("ProfileActivity", "Error calculating age", e);
+            return 0;
         }
     }
 }

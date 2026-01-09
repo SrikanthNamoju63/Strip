@@ -1,74 +1,125 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:padding="24dp"
-    android:gravity="center"
+    android:fillViewport="true"
     android:background="@android:color/white">
 
-    <ImageView
-        android:layout_width="100dp"
-        android:layout_height="100dp"
-        android:src="@drawable/ic_check_circle"
-        android:layout_marginBottom="24dp"
-        android:tint="@color/green_500"/>
-
-    <TextView
+    <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Appointment Booked Successfully!"
-        android:textSize="24sp"
-        android:textStyle="bold"
-        android:gravity="center"
-        android:layout_marginBottom="16dp"
-        android:textColor="#333333"/>
+        android:padding="24dp">
 
-    <TextView
-        android:id="@+id/tvConfirmationDetails"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:textSize="16sp"
-        android:lineSpacingMultiplier="1.2"
-        android:gravity="center"
-        android:layout_marginBottom="32dp"
-        android:textColor="#666666"/>
+        <ImageView
+            android:id="@+id/ivSuccess"
+            android:layout_width="100dp"
+            android:layout_height="100dp"
+            android:layout_marginTop="32dp"
+            android:src="@drawable/avd_success"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
 
-    <Button
-        android:id="@+id/btnAddToCalendar"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Add to Google Calendar"
-        android:textColor="#FFFFFF"
-        android:textStyle="bold"
-        android:background="@drawable/rounded_button"
-        android:stateListAnimator="@null"
-        android:textSize="16sp"
-        android:layout_marginBottom="16dp"
-        android:drawablePadding="8dp"/>
+        <TextView
+            android:id="@+id/tvSuccessTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:text="Appointment  Confirmed!"
+            android:textColor="#1B5E20"
+            android:textSize="24sp"
+            android:textStyle="bold"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/ivSuccess" />
 
-    <Button
-        android:id="@+id/btnViewAppointments"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="View My Appointments"
-        android:textColor="#FFFFFF"
-        android:textStyle="bold"
-        android:background="@drawable/rounded_button"
-        android:stateListAnimator="@null"
-        android:textSize="16sp"
-        android:layout_marginBottom="16dp"/>
+        <TextView
+            android:id="@+id/tvSuccessSubtitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="Your appointment has been scheduled successfully."
+            android:textColor="#757575"
+            android:textSize="14sp"
+            android:gravity="center"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/tvSuccessTitle" />
 
-    <Button
-        android:id="@+id/btnBackToHome"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Back to Home"
-        android:textColor="#FFFFFF"
-        android:textStyle="bold"
-        android:background="@drawable/rounded_button"
-        android:stateListAnimator="@null"
-        android:textSize="16sp"/>
+        <androidx.cardview.widget.CardView
+            android:id="@+id/cvDetails"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="32dp"
+            app:cardCornerRadius="12dp"
+            app:cardElevation="4dp"
+            app:cardBackgroundColor="#F9F9F9"
+            app:layout_constraintTop_toBottomOf="@+id/tvSuccessSubtitle"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent">
 
-</LinearLayout>
+            <TextView
+                android:id="@+id/tvConfirmationDetails"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:padding="20dp"
+                android:text="Loading details..."
+                android:textColor="#37474F"
+                android:textSize="14sp"
+                android:lineSpacingExtra="6dp" />
+        </androidx.cardview.widget.CardView>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="40dp"
+            android:layout_marginBottom="24dp"
+            android:orientation="vertical"
+            app:layout_constraintTop_toBottomOf="@+id/cvDetails"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent">
+
+            <Button
+                android:id="@+id/btnAddToCalendar"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:text="Add to Google Calendar"
+                android:textColor="#FFFFFF"
+                android:textStyle="bold"
+                android:background="@drawable/rounded_button"
+                app:cornerRadius="8dp"
+                android:textSize="16sp"
+                android:textAllCaps="true"
+                android:layout_marginBottom="16dp"/>
+
+            <Button
+                android:id="@+id/btnViewAppointments"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:text="View My Appointments"
+                android:textColor="#FFFFFF"
+                android:textStyle="bold"
+                android:background="@drawable/rounded_button"
+                app:cornerRadius="8dp"
+                android:textSize="16sp"
+                android:textAllCaps="true"
+                android:layout_marginBottom="16dp"/>
+
+            <Button
+                android:id="@+id/btnBackToHome"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:text="Back to Home"
+                android:textColor="#757575"
+                android:background="@android:color/transparent"
+                android:textSize="14sp"
+                android:textAllCaps="true"
+                app:elevation="0dp"
+                android:stateListAnimator="@null"/>
+
+        </LinearLayout>
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+</ScrollView>

@@ -247,10 +247,22 @@ public class DoctorDetailActivity extends AppCompatActivity {
                         int startHour = Integer.parseInt(startTimeStr.split(":")[0]);
                         int endHour = Integer.parseInt(endTimeStr.split(":")[0]);
 
+                        Calendar now = Calendar.getInstance();
+
                         for (int hour = startHour; hour < endHour; hour++) {
                             // Example lunch break logic (1 PM)
                             if (hour == 13)
                                 continue;
+
+                            // Create calendar for this slot to check if it's in the past
+                            Calendar slotTime = (Calendar) calendar.clone();
+                            slotTime.set(Calendar.HOUR_OF_DAY, hour);
+                            slotTime.set(Calendar.MINUTE, 0);
+
+                            // Skip if slot is in the past
+                            if (slotTime.before(now)) {
+                                continue;
+                            }
 
                             String time = String.format(Locale.getDefault(), "%02d:00", hour);
                             Map<String, String> slot = new HashMap<>();
@@ -258,9 +270,6 @@ public class DoctorDetailActivity extends AppCompatActivity {
                             slot.put("time", time);
                             slot.put("display", displayDate + "\n" + time);
                             timeSlots.add(slot);
-
-                            // 30 min slot?
-                            // String time30 = String.format(Locale.getDefault(), "%02d:30", hour);
                         }
                     } catch (Exception e) {
                         Log.e(TAG, "Error parsing time for " + currentDayName + ": " + e.getMessage());
@@ -280,6 +289,7 @@ public class DoctorDetailActivity extends AppCompatActivity {
         Calendar calendar = Calendar.getInstance();
         SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
         SimpleDateFormat displayFormat = new SimpleDateFormat("EEE, MMM d", Locale.getDefault());
+        Calendar now = Calendar.getInstance();
 
         // Generate time slots for next 7 days, 9 AM to 5 PM
         for (int i = 0; i < 7; i++) {
@@ -289,6 +299,15 @@ public class DoctorDetailActivity extends AppCompatActivity {
             for (int hour = 9; hour <= 17; hour++) {
                 if (hour == 12)
                     continue; // Skip lunch hour
+
+                // Create calendar for this slot to check if it's in the past
+                Calendar slotTime = (Calendar) calendar.clone();
+                slotTime.set(Calendar.HOUR_OF_DAY, hour);
+                slotTime.set(Calendar.MINUTE, 0);
+
+                if (slotTime.before(now)) {
+                    continue;
+                }
 
                 String time = String.format(Locale.getDefault(), "%02d:00", hour);
                 Map<String, String> slot = new HashMap<>();
@@ -308,7 +327,7 @@ public class DoctorDetailActivity extends AppCompatActivity {
         int[] to = { android.R.id.text1 };
 
         SimpleAdapter adapter = new SimpleAdapter(DoctorDetailActivity.this,
-                timeSlots, android.R.layout.simple_list_item_1, from, to);
+                timeSlots, R.layout.item_time_slot, from, to);
         gvTimeSlots.setAdapter(adapter);
 
         gvTimeSlots.setOnItemClickListener(new AdapterView.OnItemClickListener() {
@@ -322,9 +341,16 @@ public class DoctorDetailActivity extends AppCompatActivity {
 
                 // Highlight selected slot
                 for (int i = 0; i < parent.getChildCount(); i++) {
-                    parent.getChildAt(i).setBackgroundResource(android.R.color.transparent);
+                    // Reset to default background defined in XML
+                    parent.getChildAt(i).setBackgroundResource(R.drawable.edittext_background);
                 }
-                view.setBackgroundResource(R.drawable.selected_time_slot_bg);
+                // Set highlight background (ensure this drawable exists or use color)
+                // Assuming selected_time_slot_bg is just a color or different drawable
+                try {
+                    view.setBackgroundResource(R.drawable.selected_time_slot_bg);
+                } catch (Exception e) {
+                    view.setBackgroundColor(getResources().getColor(android.R.color.holo_blue_light));
+                }
 
                 Toast.makeText(DoctorDetailActivity.this,
                         "Selected: " + slot.get("display"), Toast.LENGTH_SHORT).show();

@@ -13,6 +13,7 @@ public class BookingConfirmationActivity extends AppCompatActivity {
 
     private TextView tvConfirmationDetails;
     private Button btnViewAppointments, btnBackToHome, btnAddToCalendar;
+    private android.widget.ImageView ivSuccess;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -30,6 +31,13 @@ public class BookingConfirmationActivity extends AppCompatActivity {
         btnViewAppointments = findViewById(R.id.btnViewAppointments);
         btnBackToHome = findViewById(R.id.btnBackToHome);
         btnAddToCalendar = findViewById(R.id.btnAddToCalendar);
+        ivSuccess = findViewById(R.id.ivSuccess);
+
+        // Start Success Animation
+        android.graphics.drawable.Drawable drawable = ivSuccess.getDrawable();
+        if (drawable instanceof android.graphics.drawable.Animatable) {
+            ((android.graphics.drawable.Animatable) drawable).start();
+        }
     }
 
     private void displayConfirmationDetails() {
@@ -51,16 +59,15 @@ public class BookingConfirmationActivity extends AppCompatActivity {
         // Format and display confirmation message
         String confirmationMessage = formatConfirmationMessage(
                 doctorName, specialization, hospital, appointmentDate,
-                appointmentTime, patientName, address, price, paymentMethod, paymentStatus, transactionId
-        );
+                appointmentTime, patientName, address, price, paymentMethod, paymentStatus, transactionId);
         tvConfirmationDetails.setText(confirmationMessage);
     }
 
     private String formatConfirmationMessage(String doctorName, String specialization,
-                                             String hospital, String appointmentDate,
-                                             String appointmentTime, String patientName,
-                                             String address, String price, String paymentMethod,
-                                             String paymentStatus, String transactionId) {
+            String hospital, String appointmentDate,
+            String appointmentTime, String patientName,
+            String address, String price, String paymentMethod,
+            String paymentStatus, String transactionId) {
 
         StringBuilder message = new StringBuilder();
 
@@ -70,7 +77,8 @@ public class BookingConfirmationActivity extends AppCompatActivity {
             message.append("Dear Patient,\n\n");
         }
 
-        message.append("Your appointment has been confirmed!\n\n");
+        // message.append("Your appointment has been confirmed!\n\n"); // Removed as
+        // header already says this
 
         // Appointment Details
         if (doctorName != null) {

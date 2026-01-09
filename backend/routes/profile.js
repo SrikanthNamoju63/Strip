@@ -61,26 +61,56 @@ router.get('/:userId', async (req, res) => {
         const user = await User.findOne({ user_id: userId });
         if (!user) return res.status(404).json({ success: false, error: 'User not found' });
 
+        // Lazy generation of display_id for legacy users
+        if (!user.display_id) {
+            let displayId;
+            let exists = true;
+            while (exists) {
+                displayId = Math.floor(100000 + Math.random() * 900000).toString();
+                const existing = await User.findOne({ display_id: displayId });
+                if (!existing) exists = false;
+            }
+            user.display_id = displayId;
+            // We need to bypass validation if other required fields are missing in legacy data, 
+            // but user.save() should handle it if model is consistent.
+            await user.save({ validateBeforeSave: false });
+        }
+
         const userProfile = await UserProfile.findOne({ user_id: userId }) || {};
 
         // Fetch related data in parallel
         const [appointments, healthHistory, allergies, medications] = await Promise.all([
-            Appointment.find({ user_id: userId }).populate('doctor_id', 'full_name specialization hospital_name').sort({ appointment_date_time: -1 }).limit(10),
+            Appointment.find({ user_id: userId }).sort({ appointment_date_time: -1 }).limit(10),
             MedicalHistory.find({ user_id: userId }).sort({ recorded_at: -1 }).limit(10),
             MedicalHistory.find({ user_id: userId, condition_type: 'allergy', is_active: true }).limit(10),
             UserMedication.find({ user_id: userId, is_active: true }).sort({ start_date: -1 }).limit(10)
         ]);
 
-        // Format appointments to match legacy structure
+        // Manually fetch doctor details for appointments (Fix for cross-DB populate issue)
+        const doctorIds = [...new Set(appointments.map(a => a.doctor_id).filter(id => id))];
+
+        let doctorMap = {};
+        if (doctorIds.length > 0) {
+            const DoctorModel = require('../models/Doctor');
+            const doctors = await DoctorModel.find({ _id: { $in: doctorIds } });
+            doctors.forEach(d => {
+                doctorMap[d._id.toString()] = d;
+            });
+        }
+
+        // Format appointments
         const formattedAppointments = appointments.map(app => {
-            const doc = app.doctor_id || {};
+            const doc = (app.doctor_id && doctorMap[app.doctor_id.toString()]) || {};
+            const hospital = doc.hospital_details || {};
+
             return {
                 appointment_id: app.appointment_id,
-                doctor_name: doc.full_name || 'Unknown',
+                doctor_name: doc.full_name || 'Unknown Doctor',
                 specialization: doc.specialization || 'General',
-                hospital_name: doc.hospital_name,
+                hospital_name: hospital.name || 'Unknown Hospital',
                 appointment_date: app.appointment_date_time,
                 status: app.status,
+                token_number: app.token_number || ((app.appointment_id % 50) + 1),
                 amount: app.amount_paid || app.consultation_fee
             };
         });
@@ -139,6 +169,19 @@ router.get('/simple/:userId', async (req, res) => {
     try {
         const user = await User.findOne({ user_id: req.params.userId });
         if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+
+        // Lazy generation of display_id for legacy users
+        if (!user.display_id) {
+            let displayId;
+            let exists = true;
+            while (exists) {
+                displayId = Math.floor(100000 + Math.random() * 900000).toString();
+                const existing = await User.findOne({ display_id: displayId });
+                if (!existing) exists = false;
+            }
+            user.display_id = displayId;
+            await user.save({ validateBeforeSave: false });
+        }
 
         res.json({
             success: true,
@@ -254,7 +297,7 @@ router.get('/:userId/appointments', async (req, res) => {
                 appointment_date: app.appointment_date_time,
                 status: app.status,
                 symptoms: app.symptoms,
-                token_number: app.token_number,
+                token_number: app.token_number || ((app.appointment_id % 50) + 1),
                 amount: app.amount_paid || app.consultation_fee
             };
         });

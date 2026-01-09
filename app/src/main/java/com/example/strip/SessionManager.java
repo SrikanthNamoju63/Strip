@@ -20,10 +20,11 @@ public class SessionManager {
         editor = prefs.edit();
     }
 
-    public void createSession(int userId, String name, String email) {
+    public void createSession(int userId, String name, String email, String displayId) {
         editor.putInt(KEY_USER_ID, userId);
         editor.putString(KEY_USER_NAME, name);
         editor.putString(KEY_USER_EMAIL, email);
+        editor.putString("display_id", displayId);
         editor.putBoolean(KEY_IS_LOGGED_IN, true);
         editor.apply();
     }
@@ -34,6 +35,10 @@ public class SessionManager {
 
     public String getUserName() {
         return prefs.getString(KEY_USER_NAME, "");
+    }
+
+    public String getUserDisplayId() {
+        return prefs.getString("display_id", "");
     }
 
     public String getUserEmail() {

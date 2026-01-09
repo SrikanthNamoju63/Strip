@@ -79,8 +79,17 @@ public class LoginActivity extends AppCompatActivity {
                         int userId = ((Double) result.get("userId")).intValue();
                         String name = (String) result.get("name");
 
+                        // Handle user map if present for display_id
+                        String displayId = "";
+                        if (result.containsKey("user")) {
+                            Map<String, Object> userMap = (Map<String, Object>) result.get("user");
+                            if (userMap != null && userMap.containsKey("display_id")) {
+                                displayId = (String) userMap.get("display_id");
+                            }
+                        }
+
                         // Save user session
-                        sessionManager.createSession(userId, name, email);
+                        sessionManager.createSession(userId, name, email, displayId);
 
                         Toast.makeText(LoginActivity.this, "Login Successful", Toast.LENGTH_SHORT).show();
                         Intent intent = new Intent(LoginActivity.this, HomeActivity.class);

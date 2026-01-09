@@ -115,6 +115,17 @@ router.post('/book-compat', async (req, res) => {
             }
         }
 
+        // Validate Contact Number from notes
+        if (notes) {
+            const contactMatch = notes.match(/Contact:\s*(\d+)/);
+            if (contactMatch) {
+                const contactNumber = contactMatch[1].trim();
+                if (contactNumber.length !== 10) {
+                    return res.status(400).json({ success: false, error: 'Contact number must be exactly 10 digits' });
+                }
+            }
+        }
+
         // Parse Patient Name from notes
         let patientName = 'Guest';
         if (notes) {

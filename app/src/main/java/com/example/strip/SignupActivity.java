@@ -16,7 +16,7 @@ import java.util.Map;
 
 public class SignupActivity extends AppCompatActivity {
 
-    private EditText edtName, edtEmail, edtPassword, edtAge, edtDob;
+    private EditText edtName, edtEmail, edtPassword, edtDob;
     private Button btnSignUp;
     private TextView txtLogin;
 
@@ -29,17 +29,33 @@ public class SignupActivity extends AppCompatActivity {
         edtName = findViewById(R.id.edtName);
         edtEmail = findViewById(R.id.edtEmail);
         edtPassword = findViewById(R.id.edtPassword);
-        edtAge = findViewById(R.id.edtAge);
         edtDob = findViewById(R.id.edtDob);
         btnSignUp = findViewById(R.id.btnSignUp);
         txtLogin = findViewById(R.id.txtLogin);
+
+        // Date Picker for DOB
+        edtDob.setOnClickListener(v -> {
+            java.util.Calendar calendar = java.util.Calendar.getInstance();
+            int year = calendar.get(java.util.Calendar.YEAR);
+            int month = calendar.get(java.util.Calendar.MONTH);
+            int day = calendar.get(java.util.Calendar.DAY_OF_MONTH);
+
+            android.app.DatePickerDialog datePickerDialog = new android.app.DatePickerDialog(
+                    SignupActivity.this,
+                    (view, year1, month1, dayOfMonth) -> {
+                        // Format: YYYY-MM-DD
+                        String date = year1 + "-" + String.format("%02d", (month1 + 1)) + "-"
+                                + String.format("%02d", dayOfMonth);
+                        edtDob.setText(date);
+                    }, year, month, day);
+            datePickerDialog.show();
+        });
 
         // Sign Up Button Click
         btnSignUp.setOnClickListener(v -> {
             String name = edtName.getText().toString().trim();
             String email = edtEmail.getText().toString().trim();
             String password = edtPassword.getText().toString().trim();
-            String ageStr = edtAge.getText().toString().trim();
             String dob = edtDob.getText().toString().trim();
 
             if (name.isEmpty()) {
@@ -66,19 +82,14 @@ public class SignupActivity extends AppCompatActivity {
                 return;
             }
 
-            Integer age = null;
-            if (!ageStr.isEmpty()) {
-                try {
-                    age = Integer.parseInt(ageStr);
-                } catch (NumberFormatException e) {
-                    edtAge.setError("Please enter a valid age");
-                    edtAge.requestFocus();
-                    return;
-                }
+            if (dob.isEmpty()) {
+                edtDob.setError("Date of Birth is required");
+                edtDob.requestFocus();
+                return;
             }
 
-            // Create user object
-            User user = new User(name, email, password, age, dob, null);
+            // Create user object (Age is null, calculated from DOB)
+            User user = new User(name, email, password, null, dob, null);
 
             // Call API
             ApiService apiService = RetrofitClient.getApiService();
