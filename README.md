@@ -1,0 +1,2 @@
+# Strip
+Strip User App
