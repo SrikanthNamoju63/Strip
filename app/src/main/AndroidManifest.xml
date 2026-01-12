@@ -57,6 +57,15 @@
             android:name=".DoctorListActivity"
             android:exported="false" />
         <activity
+            android:name=".ForgotPasswordActivity"
+            android:exported="false" />
+        <activity
+            android:name=".OtpVerificationActivity"
+            android:exported="false" />
+        <activity
+            android:name=".ResetPasswordActivity"
+            android:exported="false" />
+        <activity
             android:name=".AppointmentBookingActivity"
             android:exported="false" />
         <activity

@@ -20,8 +20,17 @@ public interface ApiService {
         @POST("api/auth/login")
         Call<Map<String, Object>> login(@Body LoginRequest loginRequest);
 
-        @GET("api/auth/verify")
+        @POST("api/auth/verify")
         Call<Map<String, Object>> verifyToken(@Header("Authorization") String authToken);
+
+        @POST("api/auth/forgot-password")
+        Call<Map<String, Object>> forgotPassword(@Body Map<String, String> body);
+
+        @POST("api/auth/verify-otp")
+        Call<Map<String, Object>> verifyOtp(@Body Map<String, String> body);
+
+        @POST("api/auth/reset-password")
+        Call<Map<String, Object>> resetPassword(@Body Map<String, String> body);
 
         // =============================================================
         // PROFILE ENDPOINTS - FIXED: Remove duplicate /api/
@@ -222,4 +231,11 @@ public interface ApiService {
         Call<Map<String, Object>> changePassword(
                         @Path("userId") int userId,
                         @Body Map<String, String> passwordData);
+
+        // =============================================================
+        // BANNER ENDPOINTS
+        // =============================================================
+
+        @GET("api/banners")
+        Call<Map<String, Object>> getBanners();
 }

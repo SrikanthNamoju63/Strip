@@ -50,7 +50,7 @@ dependencies {
     implementation("com.squareup.retrofit2:converter-gson:2.9.0")
     implementation("androidx.cardview:cardview:1.0.0")
     implementation("com.google.android.material:material:1.9.0")
-    implementation("com.squareup.okhttp3:okhttp:4.11.0")
+    implementation("com.squareup.okhttp3:okhttp:5.3.2")
 
     // Graphs
     implementation("com.jjoe64:graphview:4.2.2") {
@@ -66,4 +66,10 @@ dependencies {
     implementation("com.squareup.okhttp3:logging-interceptor:4.11.0")
 
     implementation("com.github.PhilJay:MPAndroidChart:3.1.0")
+    
+    // Google Location Services
+    implementation("com.google.android.gms:play-services-location:21.3.0")
+
+    // UI
+    implementation("androidx.viewpager2:viewpager2:1.0.0")
 }

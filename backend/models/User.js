@@ -14,6 +14,8 @@ const userSchema = new mongoose.Schema({
     is_email_verified: { type: Boolean, default: false },
     is_phone_verified: { type: Boolean, default: false },
     fcm_token: { type: String },
+    reset_otp: { type: String },
+    reset_otp_expiry: { type: Date },
     last_login: { type: Date },
     created_at: { type: Date, default: Date.now },
     updated_at: { type: Date, default: Date.now }

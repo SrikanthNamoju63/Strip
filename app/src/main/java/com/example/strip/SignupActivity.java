@@ -59,19 +59,25 @@ public class SignupActivity extends AppCompatActivity {
             String dob = edtDob.getText().toString().trim();
 
             if (name.isEmpty()) {
-                edtName.setError("Name is required");
+                edtName.setError("Please enter name");
                 edtName.requestFocus();
                 return;
             }
 
             if (email.isEmpty()) {
-                edtEmail.setError("Email is required");
+                edtEmail.setError("Please enter email");
+                edtEmail.requestFocus();
+                return;
+            }
+
+            if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+                edtEmail.setError("Enter valid email address");
                 edtEmail.requestFocus();
                 return;
             }
 
             if (password.isEmpty()) {
-                edtPassword.setError("Password is required");
+                edtPassword.setError("Please enter password");
                 edtPassword.requestFocus();
                 return;
             }
@@ -83,10 +89,13 @@ public class SignupActivity extends AppCompatActivity {
             }
 
             if (dob.isEmpty()) {
-                edtDob.setError("Date of Birth is required");
+                edtDob.setError("Please select date of birth");
                 edtDob.requestFocus();
                 return;
             }
+
+            android.widget.ProgressBar pbSignUp = findViewById(R.id.pbSignUp);
+            LoadingUtils.showLoading(btnSignUp, pbSignUp);
 
             // Create user object (Age is null, calculated from DOB)
             User user = new User(name, email, password, null, dob, null);
@@ -98,6 +107,8 @@ public class SignupActivity extends AppCompatActivity {
             call.enqueue(new Callback<Map<String, Object>>() {
                 @Override
                 public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
+                    LoadingUtils.hideLoading(btnSignUp, pbSignUp);
+
                     if (response.isSuccessful() && response.body() != null) {
                         Map<String, Object> result = response.body();
                         Toast.makeText(SignupActivity.this,
@@ -108,21 +119,35 @@ public class SignupActivity extends AppCompatActivity {
                         startActivity(intent);
                         finish();
                     } else {
-                        Toast.makeText(SignupActivity.this,
-                                "Signup failed: " + response.message(), Toast.LENGTH_SHORT).show();
+                        try {
+                            String errorBody = response.errorBody().string();
+                            org.json.JSONObject jsonObject = new org.json.JSONObject(errorBody);
+                            String errorMessage = jsonObject.optString("error", "Signup failed");
+                            Toast.makeText(SignupActivity.this, errorMessage, Toast.LENGTH_SHORT).show();
+                        } catch (Exception e) {
+                            Toast.makeText(SignupActivity.this, "Server error, try again", Toast.LENGTH_SHORT).show();
+                        }
                     }
                 }
 
                 @Override
                 public void onFailure(Call<Map<String, Object>> call, Throwable t) {
-                    Toast.makeText(SignupActivity.this,
-                            "Network error: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+                    LoadingUtils.hideLoading(btnSignUp, pbSignUp);
+                    if (t instanceof java.io.IOException) {
+                        Toast.makeText(SignupActivity.this, "Check your internet connection", Toast.LENGTH_SHORT)
+                                .show();
+                    } else {
+                        Toast.makeText(SignupActivity.this, "Server error: " + t.getMessage(), Toast.LENGTH_SHORT)
+                                .show();
+                    }
                 }
             });
         });
 
         // Login Text Click → Go to LoginActivity
         txtLogin.setOnClickListener(v -> {
+            // Clear session to prevent auto-redirect to HomeActivity
+            new SessionManager(SignupActivity.this).logout();
             Intent intent = new Intent(SignupActivity.this, LoginActivity.class);
             startActivity(intent);
             finish();

@@ -149,6 +149,7 @@ public class HealthPredictActivity extends AppCompatActivity {
     private BluetoothLeScanner bluetoothLeScanner;
     private boolean isScanning = false;
     private static final long SCAN_PERIOD = 10000;
+    private boolean waitingForBluetoothSettings = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -181,7 +182,18 @@ public class HealthPredictActivity extends AppCompatActivity {
             if (isConnected) {
                 disconnectWatch();
             } else {
-                startScanning();
+                // Open system Bluetooth settings
+                try {
+                    android.content.Intent intent = new android.content.Intent(
+                            android.provider.Settings.ACTION_BLUETOOTH_SETTINGS);
+                    startActivity(intent);
+                    waitingForBluetoothSettings = true;
+                    toast("Please pair/connect your device in Settings, then return here.");
+                } catch (Exception e) {
+                    Log.e(TAG, "Error opening Bluetooth settings: " + e.getMessage());
+                    toast("Could not open Bluetooth settings. Starting scan...");
+                    startScanning();
+                }
             }
         });
 
@@ -193,6 +205,47 @@ public class HealthPredictActivity extends AppCompatActivity {
 
         // Load initial data
         loadLatestPrediction();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (waitingForBluetoothSettings) {
+            waitingForBluetoothSettings = false;
+            if (!isConnected) {
+                Log.d(TAG, "Returning from settings, starting scan...");
+                toast("Scanning for devices...");
+                startScanning();
+
+                // Also check for already bonded devices as a fallback/accelerator
+                checkBondedDevices();
+            }
+        }
+    }
+
+    private void checkBondedDevices() {
+        if (bluetoothAdapter != null && hasBtConnectPermission()) {
+            java.util.Set<BluetoothDevice> bondedDevices = bluetoothAdapter.getBondedDevices();
+            if (bondedDevices != null && !bondedDevices.isEmpty()) {
+                for (BluetoothDevice device : bondedDevices) {
+                    Log.d(TAG, "Checking bonded device: " + device.getName());
+                    // Logic: If we find a bonded device, we could try to connect.
+                    // To avoid conflict with scan, we might wait or just connect if scan finds
+                    // nothing.
+                    // For now, let's rely on scan, but if the device is bonded, scan results
+                    // usually appear quickly.
+
+                    // Optional: detecting if it's a health device.
+                    // For now, we will rely on startScanning() which covers most cases.
+                    // But if the user explicitly connected in settings, we might want to prioritize
+                    // it.
+                    // Let's just log them for now.
+                    // If we want to force connection to a known bonded device:
+                    // connectToDevice(device); // This might be too aggressive if multiple devices
+                    // exist.
+                }
+            }
+        }
     }
 
     private void startScanning() {

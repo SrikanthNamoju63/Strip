@@ -11,7 +11,9 @@ router.post('/register-donor', async (req, res) => {
         phone,
         smoker,
         alcohol_consumer,
-        last_donation_date
+        last_donation_date,
+        dob,
+        age
     } = req.body;
 
     if (!user_id || !blood_group) return res.status(400).json({ success: false, error: "user_id/blood_group required" });
@@ -19,17 +21,28 @@ router.post('/register-donor', async (req, res) => {
     try {
         let isEligible = true;
         let reason = '';
+        let nextEligibleDate = new Date(); // Default to today if never donated
 
+        // Lifestyle Check
         if (smoker === 'Yes' || alcohol_consumer === 'Yes') {
             isEligible = false;
             reason = 'Ineligible due to lifestyle factors';
+            // Even if ineligible, we store the data
         }
 
+        // Date Check (6 Months / 180 Days)
         if (last_donation_date) {
-            const daysDiff = (new Date() - new Date(last_donation_date)) / (1000 * 60 * 60 * 24);
-            if (daysDiff < 90) {
+            const lastDate = new Date(last_donation_date);
+            const today = new Date();
+            const daysDiff = (today - lastDate) / (1000 * 60 * 60 * 24);
+
+            // Calculate next date = lastDate + 180 days
+            nextEligibleDate = new Date(lastDate);
+            nextEligibleDate.setDate(nextEligibleDate.getDate() + 180);
+
+            if (daysDiff < 180) {
                 isEligible = false;
-                reason = 'Recent donation';
+                reason = `Recent donation. Next eligible: ${nextEligibleDate.toDateString()}`;
             }
         }
 
@@ -46,6 +59,11 @@ router.post('/register-donor', async (req, res) => {
                 blood_group, city, state, phone,
                 is_eligible: isEligible,
                 last_donation_date: last_donation_date,
+                next_eligible_date: nextEligibleDate,
+                dob: dob,
+                age: age,
+                smoker: smoker,
+                alcohol_consumer: alcohol_consumer,
                 updated_at: new Date()
             },
             { upsert: true, new: true }

@@ -16,6 +16,16 @@ public class WelcomeActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        // Check Login State
+        SessionManager sessionManager = new SessionManager(this);
+        if (sessionManager.isLoggedIn()) {
+            Intent intent = new Intent(WelcomeActivity.this, HomeActivity.class);
+            startActivity(intent);
+            finish(); // Close Welcome
+            return;
+        }
+
         setContentView(R.layout.activity_welcome);
 
         // Initialize Views

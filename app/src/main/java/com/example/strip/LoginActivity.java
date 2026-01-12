@@ -50,22 +50,19 @@ public class LoginActivity extends AppCompatActivity {
             String password = edtPassword.getText().toString().trim();
 
             if (TextUtils.isEmpty(email)) {
-                edtEmail.setError("Email is required");
+                edtEmail.setError("Please enter email");
                 edtEmail.requestFocus();
                 return;
             }
 
             if (TextUtils.isEmpty(password)) {
-                edtPassword.setError("Password is required");
+                edtPassword.setError("Please enter password");
                 edtPassword.requestFocus();
                 return;
             }
 
-            if (password.length() < 6) {
-                edtPassword.setError("Password must be at least 6 characters");
-                edtPassword.requestFocus();
-                return;
-            }
+            android.widget.ProgressBar pbLogin = findViewById(R.id.pbLogin);
+            LoadingUtils.showLoading(btnLogin, pbLogin);
 
             LoginRequest loginRequest = new LoginRequest(email, password);
             ApiService apiService = RetrofitClient.getApiService();
@@ -74,6 +71,8 @@ public class LoginActivity extends AppCompatActivity {
             call.enqueue(new Callback<Map<String, Object>>() {
                 @Override
                 public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
+                    LoadingUtils.hideLoading(btnLogin, pbLogin);
+
                     if (response.isSuccessful() && response.body() != null) {
                         Map<String, Object> result = response.body();
                         int userId = ((Double) result.get("userId")).intValue();
@@ -96,15 +95,28 @@ public class LoginActivity extends AppCompatActivity {
                         startActivity(intent);
                         finish();
                     } else {
-                        Toast.makeText(LoginActivity.this,
-                                "Login failed: " + response.message(), Toast.LENGTH_SHORT).show();
+                        // Handle specific backend errors (401, 404, etc.)
+                        try {
+                            String errorBody = response.errorBody().string();
+                            org.json.JSONObject jsonObject = new org.json.JSONObject(errorBody);
+                            String errorMessage = jsonObject.optString("error", "Login failed");
+                            Toast.makeText(LoginActivity.this, errorMessage, Toast.LENGTH_SHORT).show();
+                        } catch (Exception e) {
+                            Toast.makeText(LoginActivity.this, "Server error, try again", Toast.LENGTH_SHORT).show();
+                        }
                     }
                 }
 
                 @Override
                 public void onFailure(Call<Map<String, Object>> call, Throwable t) {
-                    Toast.makeText(LoginActivity.this,
-                            "Network error: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+                    LoadingUtils.hideLoading(btnLogin, pbLogin);
+
+                    if (t instanceof java.io.IOException) {
+                        Toast.makeText(LoginActivity.this, "No internet connection", Toast.LENGTH_SHORT).show();
+                    } else {
+                        Toast.makeText(LoginActivity.this, "Server not responding, try again", Toast.LENGTH_SHORT)
+                                .show();
+                    }
                 }
             });
         });
@@ -117,13 +129,8 @@ public class LoginActivity extends AppCompatActivity {
 
         // Handle Forgot Password click
         txtForgotPassword.setOnClickListener(v -> {
-            String email = edtEmail.getText().toString().trim();
-            if (TextUtils.isEmpty(email)) {
-                edtEmail.setError("Enter your email to reset password");
-                edtEmail.requestFocus();
-                return;
-            }
-            Toast.makeText(LoginActivity.this, "Password reset feature not implemented yet", Toast.LENGTH_SHORT).show();
+            Intent intent = new Intent(LoginActivity.this, ForgotPasswordActivity.class);
+            startActivity(intent);
         });
     }
 }

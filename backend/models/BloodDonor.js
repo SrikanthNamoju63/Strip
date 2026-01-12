@@ -28,6 +28,13 @@ const bloodDonorSchema = new mongoose.Schema({
     last_donation_location: { type: String },
     emergency_contact_name: { type: String },
     emergency_contact_phone: { type: String },
+
+    // Personal & Lifestyle
+    dob: { type: Date },
+    age: { type: Number },
+    smoker: { type: String, enum: ['Yes', 'No'], default: 'No' },
+    alcohol_consumer: { type: String, enum: ['Yes', 'No'], default: 'No' },
+
     created_at: { type: Date, default: Date.now },
     updated_at: { type: Date, default: Date.now }
 }, {

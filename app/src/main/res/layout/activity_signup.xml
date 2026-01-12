@@ -74,20 +74,28 @@
         android:layout_marginStart="32dp"
         android:layout_marginEnd="32dp" />
 
-    <EditText
-        android:id="@+id/edtPassword"
+    <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/tilPassword"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:hint="Password"
-        android:padding="12dp"
-        android:background="@drawable/edittext_background"
-        android:inputType="textPassword"
+        app:passwordToggleEnabled="true"
+        app:hintEnabled="false"
         app:layout_constraintTop_toBottomOf="@id/edtEmail"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         android:layout_marginTop="12dp"
         android:layout_marginStart="32dp"
-        android:layout_marginEnd="32dp" />
+        android:layout_marginEnd="32dp">
+
+        <EditText
+            android:id="@+id/edtPassword"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Password"
+            android:padding="12dp"
+            android:background="@drawable/edittext_background"
+            android:inputType="textPassword" />
+    </com.google.android.material.textfield.TextInputLayout>
 
     <!-- Date of Birth Input -->
     <EditText
@@ -100,7 +108,7 @@
         android:focusable="false"
         android:clickable="true"
         android:inputType="none"
-        app:layout_constraintTop_toBottomOf="@id/edtPassword"
+        app:layout_constraintTop_toBottomOf="@id/tilPassword"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         android:layout_marginTop="12dp"
@@ -122,6 +130,18 @@
         android:layout_marginTop="24dp"
         android:layout_marginStart="32dp"
         android:layout_marginEnd="32dp" />
+
+    <ProgressBar
+        android:id="@+id/pbSignUp"
+        android:layout_width="30dp"
+        android:layout_height="30dp"
+        android:visibility="gone"
+        android:elevation="10dp"
+        android:indeterminateTint="#FFFFFF"
+        app:layout_constraintBottom_toBottomOf="@id/btnSignUp"
+        app:layout_constraintEnd_toEndOf="@id/btnSignUp"
+        app:layout_constraintStart_toStartOf="@id/btnSignUp"
+        app:layout_constraintTop_toTopOf="@id/btnSignUp" />
 
     <TextView
         android:id="@+id/txtLogin"
