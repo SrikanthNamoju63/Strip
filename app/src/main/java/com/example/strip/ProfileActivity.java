@@ -11,6 +11,7 @@ import com.bumptech.glide.load.engine.DiskCacheStrategy;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
+import androidx.recyclerview.widget.RecyclerView;
 import java.util.*;
 
 public class ProfileActivity extends AppCompatActivity {
@@ -19,8 +20,10 @@ public class ProfileActivity extends AppCompatActivity {
     private TextView tvAge, tvGender, tvPhone, tvBloodGroup, tvCity, tvBio;
     private ImageView ivProfileImage;
     private ListView lvAppointments;
-    private Button btnLogout, btnEditProfile;
-    private LinearLayout cvPersonalInfo, cvAppointments;
+    private RecyclerView rvBloodHistory;
+    private Button btnLogout, btnEditProfile, btnAddDonation;
+    private TextView tvNoBloodHistory;
+    private LinearLayout cvPersonalInfo, cvAppointments, cvBloodHistory;
     private ProgressBar progressBar;
     private SessionManager sessionManager;
     private UserProfile userProfile;
@@ -41,6 +44,7 @@ public class ProfileActivity extends AppCompatActivity {
         initializeViews();
         setupClickListeners();
         loadUserProfile();
+        fetchBloodHistory();
     }
 
     private void initializeViews() {
@@ -58,14 +62,27 @@ public class ProfileActivity extends AppCompatActivity {
         tvNoAppointments = findViewById(R.id.tvNoAppointments);
         btnLogout = findViewById(R.id.btnLogout);
         btnEditProfile = findViewById(R.id.btnEditProfile);
+
         cvPersonalInfo = findViewById(R.id.cvPersonalInfo);
         cvAppointments = findViewById(R.id.cvAppointments);
+
+        // Blood History
+        cvBloodHistory = findViewById(R.id.cvBloodHistory);
+        rvBloodHistory = findViewById(R.id.rvBloodHistory);
+        tvNoBloodHistory = findViewById(R.id.tvNoBloodHistory);
+        btnAddDonation = findViewById(R.id.btnAddDonation);
+
+        rvBloodHistory.setLayoutManager(new androidx.recyclerview.widget.LinearLayoutManager(this));
+
         progressBar = findViewById(R.id.progressBar);
     }
 
     private void setupClickListeners() {
         btnLogout.setOnClickListener(v -> showLogoutConfirmation());
         btnEditProfile.setOnClickListener(v -> openEditProfile());
+
+        if (btnAddDonation != null)
+            btnAddDonation.setOnClickListener(v -> startActivity(new Intent(this, BloodDonationActivity.class)));
 
         lvAppointments.setOnItemClickListener((parent, view, position, id) -> {
             if (userProfile != null && userProfile.getAppointments() != null
@@ -460,5 +477,48 @@ public class ProfileActivity extends AppCompatActivity {
             Log.e("ProfileActivity", "Error calculating age", e);
             return 0;
         }
+    }
+
+    private void fetchBloodHistory() {
+        ApiService apiService = RetrofitClient.getApiService();
+        apiService.getDonationHistory(sessionManager.getUserId()).enqueue(new Callback<Map<String, Object>>() {
+            @Override
+            public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    List<BloodHistory> historyList = new ArrayList<>();
+                    Object data = response.body().get("history");
+                    if (data instanceof List) {
+                        List<?> list = (List<?>) data;
+                        for (Object obj : list) {
+                            if (obj instanceof Map) {
+                                Map<String, Object> item = (Map<String, Object>) obj;
+                                String date = (String) item.get("donated_date");
+                                String bg = (String) item.get("blood_group");
+                                String place = (String) item.get("place");
+                                historyList.add(new BloodHistory(date, bg, place));
+                            }
+                        }
+                    }
+
+                    if (!historyList.isEmpty()) {
+                        ProfileBloodHistoryAdapter adapter = new ProfileBloodHistoryAdapter(ProfileActivity.this,
+                                historyList);
+                        rvBloodHistory.setAdapter(adapter);
+                        rvBloodHistory.setVisibility(View.VISIBLE);
+                        tvNoBloodHistory.setVisibility(View.GONE);
+                    } else {
+                        rvBloodHistory.setVisibility(View.GONE);
+                        tvNoBloodHistory.setVisibility(View.VISIBLE);
+                        if (btnAddDonation != null)
+                            btnAddDonation.setVisibility(View.VISIBLE);
+                    }
+                }
+            }
+
+            @Override
+            public void onFailure(Call<Map<String, Object>> call, Throwable t) {
+                Log.e("ProfileActivity", "Failed to load blood history: " + t.getMessage());
+            }
+        });
     }
 }

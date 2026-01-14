@@ -1,17 +1,31 @@
 package com.example.strip;
 
 import android.app.DatePickerDialog;
+import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
 import android.util.Log;
 import android.widget.*;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.cardview.widget.CardView;
+
+import com.bumptech.glide.Glide;
+import com.bumptech.glide.load.engine.DiskCacheStrategy;
 import com.example.strip.UserProfile;
 import com.example.strip.ApiService;
 import com.example.strip.RetrofitClient;
 import com.example.strip.SessionManager;
+
+import okhttp3.MediaType;
+import okhttp3.MultipartBody;
+import okhttp3.RequestBody;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.InputStream;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.HashMap;
@@ -23,9 +37,13 @@ public class EditProfileActivity extends AppCompatActivity {
     private EditText etName, etAge, etDob, etPhone, etBio, etBloodGroup, etCity, etState;
     private Spinner spGender;
     private Button btnSave;
-    private ImageView imgBack;
+    private ImageView imgBack, imgProfile;
+    private CardView cardProfileImage;
     private UserProfile userProfile;
     private SessionManager sessionManager;
+    private Uri selectedImageUri;
+
+    private static final int PICK_IMAGE_REQUEST = 101;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -39,6 +57,7 @@ public class EditProfileActivity extends AppCompatActivity {
 
         btnSave.setOnClickListener(v -> updateProfile());
         imgBack.setOnClickListener(v -> finish());
+        cardProfileImage.setOnClickListener(v -> openImagePicker());
     }
 
     private void initializeViews() {
@@ -53,6 +72,8 @@ public class EditProfileActivity extends AppCompatActivity {
         spGender = findViewById(R.id.spGender);
         btnSave = findViewById(R.id.btnSave);
         imgBack = findViewById(R.id.imgBack);
+        imgProfile = findViewById(R.id.imgProfile);
+        cardProfileImage = findViewById(R.id.cardProfileImage);
 
         // Setup gender spinner
         ArrayAdapter<CharSequence> adapter = ArrayAdapter.createFromResource(this,
@@ -69,7 +90,6 @@ public class EditProfileActivity extends AppCompatActivity {
             calendar.set(Calendar.MONTH, month);
             calendar.set(Calendar.DAY_OF_MONTH, dayOfMonth);
 
-            // Format as YYYY-MM-DD only (no time component)
             SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
             etDob.setText(dateFormat.format(calendar.getTime()));
         };
@@ -93,7 +113,6 @@ public class EditProfileActivity extends AppCompatActivity {
                 etAge.setText(String.valueOf(userProfile.getAge()));
             }
 
-            // Format date to remove time component if present
             String dob = userProfile.getDob();
             if (dob != null && dob.contains("T")) {
                 dob = dob.split("T")[0];
@@ -106,10 +125,20 @@ public class EditProfileActivity extends AppCompatActivity {
             etCity.setText(userProfile.getDisplayCity());
             etState.setText(userProfile.getState());
 
-            // Set gender spinner
             if (userProfile.getGender() != null) {
                 int position = getGenderPosition(userProfile.getGender());
                 spGender.setSelection(position);
+            }
+
+            // Load existing profile image
+            if (userProfile.getProfile_image() != null && !userProfile.getProfile_image().isEmpty()) {
+                String imageUrl = RetrofitClient.getImageUrl(userProfile.getProfile_image());
+                Glide.with(this)
+                        .load(imageUrl)
+                        .diskCacheStrategy(DiskCacheStrategy.ALL)
+                        .placeholder(R.drawable.ic_profile)
+                        .error(R.drawable.ic_profile)
+                        .into(imgProfile);
             }
         }
     }
@@ -125,42 +154,51 @@ public class EditProfileActivity extends AppCompatActivity {
     }
 
     private boolean validateForm() {
-        boolean isValid = true;
-
-        // Name validation
         if (etName.getText().toString().trim().isEmpty()) {
             etName.setError("Name is required");
-            isValid = false;
-        } else {
-            etName.setError(null);
+            return false;
         }
 
-        // Age validation
         String ageStr = etAge.getText().toString().trim();
         if (!ageStr.isEmpty()) {
             try {
                 int age = Integer.parseInt(ageStr);
                 if (age < 1 || age > 120) {
                     etAge.setError("Age must be between 1 and 120");
-                    isValid = false;
-                } else {
-                    etAge.setError(null);
+                    return false;
                 }
             } catch (NumberFormatException e) {
                 etAge.setError("Invalid age");
-                isValid = false;
+                return false;
             }
-        } else {
-            etAge.setError(null);
         }
+        return true;
+    }
 
-        return isValid;
+    private void openImagePicker() {
+        Intent intent = new Intent(Intent.ACTION_PICK);
+        intent.setType("image/*");
+        startActivityForResult(intent, PICK_IMAGE_REQUEST);
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == PICK_IMAGE_REQUEST && resultCode == RESULT_OK && data != null && data.getData() != null) {
+            selectedImageUri = data.getData();
+            // Show preview
+            Glide.with(this)
+                    .load(selectedImageUri)
+                    .circleCrop()
+                    .into(imgProfile);
+        }
     }
 
     private void updateProfile() {
-        if (!validateForm()) {
+        if (!validateForm())
             return;
-        }
+
+        showLoading(true);
 
         String name = etName.getText().toString().trim();
         String ageStr = etAge.getText().toString().trim();
@@ -172,88 +210,124 @@ public class EditProfileActivity extends AppCompatActivity {
         String city = etCity.getText().toString().trim();
         String state = etState.getText().toString().trim();
 
-        Integer age = null;
-        if (!ageStr.isEmpty()) {
-            try {
-                age = Integer.parseInt(ageStr);
-            } catch (NumberFormatException e) {
-                etAge.setError("Invalid age");
-                return;
-            }
-        }
-
-        // Ensure date is in correct format (remove any time component)
         if (dob != null && dob.contains("T")) {
-            dob = dob.split("T")[0]; // Take only the date part
+            dob = dob.split("T")[0];
         }
-
-        // Create the request body map
-        Map<String, Object> profileData = new HashMap<>();
-        profileData.put("name", name);
-        if (age != null) {
-            profileData.put("age", age);
-        } else {
-            profileData.put("age", null); // Send null if age is empty
-        }
-        profileData.put("dob", dob); // Now it's just YYYY-MM-DD
-        profileData.put("gender", gender);
-        profileData.put("phone", phone != null ? phone : "");
-        profileData.put("bio", bio != null ? bio : "");
-        profileData.put("blood_group", bloodGroup != null ? bloodGroup : "");
-        profileData.put("city", city != null ? city : "");
-        profileData.put("state", state != null ? state : "");
-
-        Log.d("EditProfile", "Sending update request for user: " + userProfile.getUser_id());
-        Log.d("EditProfile", "Update data: " + profileData.toString());
 
         ApiService apiService = RetrofitClient.getApiService();
-        Call<Map<String, Object>> call = apiService.updateProfile(userProfile.getUser_id(), profileData);
 
-        // Show loading
-        btnSave.setEnabled(false);
-        btnSave.setText("Updating...");
-
-        call.enqueue(new Callback<Map<String, Object>>() {
+        Callback<Map<String, Object>> callback = new Callback<Map<String, Object>>() {
             @Override
             public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
-                btnSave.setEnabled(true);
-                btnSave.setText("Save Changes");
-
+                showLoading(false);
                 if (response.isSuccessful() && response.body() != null) {
-                    Map<String, Object> responseBody = response.body();
-                    if (responseBody.get("success").equals(true)) {
+                    if (Boolean.TRUE.equals(response.body().get("success"))) {
                         Toast.makeText(EditProfileActivity.this, "Profile updated successfully", Toast.LENGTH_SHORT)
                                 .show();
                         setResult(RESULT_OK);
                         finish();
                     } else {
-                        String error = responseBody.containsKey("error") ? responseBody.get("error").toString()
-                                : "Failed to update profile";
-                        Toast.makeText(EditProfileActivity.this, error, Toast.LENGTH_SHORT).show();
-                        Log.e("EditProfile", "Server error: " + error);
+                        String error = (String) response.body().get("error");
+                        Toast.makeText(EditProfileActivity.this, error != null ? error : "Failed to update",
+                                Toast.LENGTH_SHORT).show();
                     }
                 } else {
-                    // Log the error for debugging
-                    try {
-                        String errorBody = response.errorBody() != null ? response.errorBody().string()
-                                : "Unknown error";
-                        Log.e("EditProfile", "HTTP " + response.code() + " Error: " + errorBody);
-                    } catch (Exception e) {
-                        Log.e("EditProfile", "Error reading error body: " + e.getMessage());
-                    }
-                    Toast.makeText(EditProfileActivity.this, "Failed to update profile: HTTP " + response.code(),
-                            Toast.LENGTH_SHORT).show();
+                    Toast.makeText(EditProfileActivity.this, "Update failed: " + response.code(), Toast.LENGTH_SHORT)
+                            .show();
                 }
             }
 
             @Override
             public void onFailure(Call<Map<String, Object>> call, Throwable t) {
-                btnSave.setEnabled(true);
-                btnSave.setText("Save Changes");
-
-                Log.e("EditProfile", "Network error: " + t.getMessage(), t);
+                showLoading(false);
                 Toast.makeText(EditProfileActivity.this, "Network error: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+                Log.e("EditProfile", "Error", t);
             }
-        });
+        };
+
+        if (selectedImageUri != null) {
+            // Upload with image (Multipart)
+            try {
+                File file = getFileFromUri(selectedImageUri);
+                if (file == null) {
+                    showLoading(false);
+                    Toast.makeText(this, "Error processing image", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+
+                // Prepare parts
+                RequestBody requestFile = RequestBody.create(MediaType.parse("image/*"), file);
+                MultipartBody.Part imagePart = MultipartBody.Part.createFormData("profile_image", file.getName(),
+                        requestFile);
+
+                Map<String, RequestBody> partMap = new HashMap<>();
+                partMap.put("name", createPartFromString(name));
+                partMap.put("age", createPartFromString(ageStr));
+                partMap.put("dob", createPartFromString(dob));
+                partMap.put("gender", createPartFromString(gender));
+                partMap.put("phone", createPartFromString(phone));
+                partMap.put("bio", createPartFromString(bio));
+                partMap.put("blood_group", createPartFromString(bloodGroup));
+                partMap.put("city", createPartFromString(city));
+                partMap.put("state", createPartFromString(state));
+
+                apiService.updateProfileMultipart(userProfile.getUser_id(), partMap, imagePart).enqueue(callback);
+
+            } catch (Exception e) {
+                showLoading(false);
+                Toast.makeText(this, "Error preparing image: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            }
+
+        } else {
+            // Standard text update (JSON)
+            Map<String, Object> data = new HashMap<>();
+            data.put("name", name);
+            if (!ageStr.isEmpty())
+                data.put("age", Integer.parseInt(ageStr));
+            else
+                data.put("age", null);
+            data.put("dob", dob);
+            data.put("gender", gender);
+            data.put("phone", phone);
+            data.put("bio", bio);
+            data.put("blood_group", bloodGroup);
+            data.put("city", city);
+            data.put("state", state);
+
+            apiService.updateProfile(userProfile.getUser_id(), data).enqueue(callback);
+        }
+    }
+
+    private void showLoading(boolean isLoading) {
+        btnSave.setEnabled(!isLoading);
+        btnSave.setText(isLoading ? "Updating..." : "Save Changes");
+    }
+
+    private RequestBody createPartFromString(String value) {
+        return RequestBody.create(MediaType.parse("text/plain"), value != null ? value : "");
+    }
+
+    private File getFileFromUri(Uri uri) {
+        try {
+            InputStream inputStream = getContentResolver().openInputStream(uri);
+            if (inputStream == null)
+                return null;
+
+            File tempFile = File.createTempFile("upload", ".jpg", getCacheDir());
+            tempFile.deleteOnExit();
+
+            FileOutputStream out = new FileOutputStream(tempFile);
+            byte[] buffer = new byte[4096];
+            int bytesRead;
+            while ((bytesRead = inputStream.read(buffer)) != -1) {
+                out.write(buffer, 0, bytesRead);
+            }
+            out.close();
+            inputStream.close();
+            return tempFile;
+        } catch (Exception e) {
+            Log.e("EditProfile", "File error", e);
+            return null;
+        }
     }
 }

@@ -1,11 +1,12 @@
 package com.example.strip;
 
+import java.io.Serializable;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 
-public class Appointment {
+public class Appointment implements Serializable {
     private int appointment_id;
     private String doctor_name;
     private String specialization;

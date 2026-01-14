@@ -19,13 +19,14 @@ import retrofit2.Response;
 
 public class DonorRegistrationActivity extends AppCompatActivity {
 
+    private static final String[] BLOOD_GROUPS = { "Select", "A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-" };
     private Spinner spinnerDonorBloodGroup, spinnerSmoke, spinnerAlcohol;
     private EditText etDonorName, etDonorLocation, etDonorContact, etLastDonation, etAge;
     private CheckBox cbFirstTimeDonor;
     private Button btnRegister;
     private ProgressBar progressBar;
     private SessionManager sessionManager;
-    private String selectedDonorBloodGroup = "A+";
+    private String selectedDonorBloodGroup = "Select";
     private String selectedSmoke = "No";
     private String selectedAlcohol = "No";
 
@@ -98,11 +99,12 @@ public class DonorRegistrationActivity extends AppCompatActivity {
 
     private void prefillUserData() {
         etDonorName.setText(sessionManager.getUserName());
+        fetchProfileData();
     }
 
     private void setupSpinners() {
-        String[] bloodGroups = { "A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-" };
-        ArrayAdapter<String> bloodAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, bloodGroups);
+        ArrayAdapter<String> bloodAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item,
+                BLOOD_GROUPS);
         bloodAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinnerDonorBloodGroup.setAdapter(bloodAdapter);
 
@@ -142,6 +144,11 @@ public class DonorRegistrationActivity extends AppCompatActivity {
     private void registerDonor() {
         if (!sessionManager.isLoggedIn()) {
             Toast.makeText(this, "Please login first", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        if (selectedDonorBloodGroup.equals("Select")) {
+            Toast.makeText(this, "Please select a Blood Group", Toast.LENGTH_SHORT).show();
             return;
         }
 
@@ -303,5 +310,74 @@ public class DonorRegistrationActivity extends AppCompatActivity {
     private void showProgress(boolean show) {
         progressBar.setVisibility(show ? View.VISIBLE : View.GONE);
         btnRegister.setEnabled(!show);
+    }
+
+    private void fetchProfileData() {
+        showProgress(true);
+        ApiService apiService = RetrofitClient.getApiService();
+        apiService.getProfile(sessionManager.getUserId()).enqueue(new Callback<Map<String, Object>>() {
+            @Override
+            public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
+                showProgress(false);
+                if (response.isSuccessful() && response.body() != null) {
+                    Map<String, Object> body = response.body();
+                    if (Boolean.TRUE.equals(body.get("success"))) {
+                        Map<String, Object> data = (Map<String, Object>) body.get("data");
+                        if (data != null) {
+                            populateFields(data);
+                        }
+                    }
+                }
+            }
+
+            @Override
+            public void onFailure(Call<Map<String, Object>> call, Throwable t) {
+                showProgress(false);
+                // Fail silently or log
+            }
+        });
+    }
+
+    private void populateFields(Map<String, Object> data) {
+        // Name
+        if (data.get("name") != null) {
+            etDonorName.setText((String) data.get("name"));
+        }
+
+        // Phone
+        if (data.get("phone") != null) {
+            etDonorContact.setText((String) data.get("phone"));
+        }
+
+        // Age
+        if (data.get("age") != null) {
+            etAge.setText(String.valueOf(((Number) data.get("age")).intValue()));
+        }
+
+        // Location (City, State)
+        String city = (String) data.get("city");
+        String state = (String) data.get("state");
+        String location = "";
+        if (city != null)
+            location = city;
+        if (state != null && !state.isEmpty()) {
+            if (!location.isEmpty())
+                location += ", ";
+            location += state;
+        }
+        if (!location.isEmpty()) {
+            etDonorLocation.setText(location);
+        }
+
+        // Blood Group
+        String bg = (String) data.get("blood_group");
+        if (bg != null) {
+            for (int i = 0; i < BLOOD_GROUPS.length; i++) {
+                if (BLOOD_GROUPS[i].equalsIgnoreCase(bg)) {
+                    spinnerDonorBloodGroup.setSelection(i);
+                    break;
+                }
+            }
+        }
     }
 }

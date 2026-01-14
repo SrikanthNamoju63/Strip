@@ -44,6 +44,13 @@ public interface ApiService {
                         @Path("userId") int userId,
                         @Body Map<String, Object> profileData);
 
+        @Multipart
+        @PUT("api/profile/{userId}")
+        Call<Map<String, Object>> updateProfileMultipart(
+                        @Path("userId") int userId,
+                        @PartMap Map<String, RequestBody> partMap,
+                        @Part MultipartBody.Part profileImage);
+
         // Upload profile image
         @Multipart
         @POST("api/profile/{userId}/upload-image")
@@ -238,4 +245,14 @@ public interface ApiService {
 
         @GET("api/banners")
         Call<Map<String, Object>> getBanners();
+
+        // =============================================================
+        // BLOOD HISTORY
+        // =============================================================
+
+        @POST("api/blood/history")
+        Call<Map<String, Object>> addDonationHistory(@Body Map<String, Object> historyData);
+
+        @GET("api/blood/history/{userId}")
+        Call<Map<String, Object>> getDonationHistory(@Path("userId") int userId);
 }
