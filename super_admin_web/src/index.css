@@ -1,0 +1,57 @@
+@import "tailwindcss";
+
+@theme {
+  --font-outfit: 'Outfit', sans-serif;
+
+  --color-primary: #2563EB;
+  --color-secondary: #1E40AF;
+  --color-accent: #10B981;
+  --color-dark: #1F2937;
+  --color-light: #F3F4F6;
+}
+
+body {
+  @apply bg-light text-dark font-outfit;
+}
+
+.card {
+  @apply bg-white p-6 rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-300;
+}
+
+.btn-primary {
+  @apply bg-primary text-white px-4 py-2 rounded-lg hover:bg-secondary transition-colors duration-300 flex items-center gap-2;
+}
+
+.input-field {
+  @apply w-full px-4 py-2 rounded-lg border border-gray-300 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all;
+}
+
+/* Custom Scrollbar - Hide visually but allow scrolling (e.g., Sidebar) */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 0px !important;
+  background: transparent !important;
+  display: none !important;
+}
+
+.custom-scrollbar {
+  -ms-overflow-style: none !important;
+  /* IE and Edge */
+  scrollbar-width: none !important;
+  /* Firefox */
+}
+
+/* Global Smooth Behavior and Hidden Scrollbars */
+html, body {
+  scroll-behavior: smooth;
+  /* Hide scrollbar for IE, Edge and Firefox */
+  -ms-overflow-style: none !important;
+  scrollbar-width: none !important;
+}
+
+/* Hide scrollbar for Chrome, Safari and Opera globally */
+::-webkit-scrollbar {
+  width: 0px !important;
+  height: 0px !important;
+  background: transparent !important;
+  display: none !important;
+}

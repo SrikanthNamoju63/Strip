@@ -1,0 +1,53 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "description": "Healthcare Platform Backend API",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "seed": "node scripts/seedAdmin.js",
+    "reset-admin": "node scripts/resetAdmin.js",
+    "check-admin": "node scripts/check_admin_login.js",
+    "check-doctors": "node scripts/verify_doctors.js",
+    "check-data": "node scripts/check_doctor_data.js",
+    "test-db": "node scripts/test_db.js",
+    "test-endpoints": "node scripts/test_endpoints.js",
+    "verify-finance": "node scripts/verify_finance.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "healthcare",
+    "appointments",
+    "payments",
+    "doctors"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "compression": "^1.7.4",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.4",
+    "express": "^5.2.1",
+    "express-rate-limit": "^7.1.5",
+    "express-validator": "^7.0.0",
+    "helmet": "^7.1.0",
+    "hpp": "^0.2.3",
+    "jsonwebtoken": "^9.0.3",
+    "mongo-sanitize": "^1.1.0",
+    "mongoose": "^9.1.5",
+    "multer": "^2.0.2",
+    "node-cron": "^4.2.1",
+    "nodemailer": "^7.0.13",
+    "rate-limit-redis": "^4.1.4",
+    "razorpay": "^2.9.6",
+    "redis": "^4.6.11",
+    "sendgrid": "^5.2.3",
+    "socket.io": "^4.8.3",
+    "xss": "^1.0.14"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.11"
+  }
+}

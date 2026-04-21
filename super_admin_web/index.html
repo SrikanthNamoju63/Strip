@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dr Strip</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+  <div id="root"></div>
+  <script>
+    window.onerror = function (message, source, lineno, colno, error) {
+      document.body.innerHTML += '<div style="color:red; background:white; padding:10px; border:1px solid red; margin:10px; z-index:9999; position:relative;"><h3>Global Error</h3><p>' + message + '</p><p>' + source + ':' + lineno + '</p><pre>' + (error ? error.stack : '') + '</pre></div>';
+    };
+    window.onunhandledrejection = function (event) {
+      document.body.innerHTML += '<div style="color:red; background:white; padding:10px; border:1px solid red; margin:10px; z-index:9999; position:relative;"><h3>Unhandled Rejection</h3><p>' + event.reason + '</p></div>';
+    };
+  </script>
+  <script type="module" src="/src/main.jsx"></script>
+</body>
+
+</html>
