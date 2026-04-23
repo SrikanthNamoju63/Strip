@@ -132,23 +132,29 @@ const Coupons = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {coupons.map((coupon) => (
+                            {coupons.map((coupon) => {
+                                const isExpired = new Date(coupon.expiryDate) < new Date();
+                                return (
                                 <tr key={coupon._id} className="border-b border-gray-50 hover:bg-gray-50 transition">
                                     <td className="p-4 font-bold text-gray-900 uppercase">{coupon.code}</td>
                                     <td className="p-4">
                                         <span className="font-semibold">{coupon.discountValue}{coupon.discountType === 'PERCENTAGE' ? '%' : '₹'}</span>
                                         {coupon.maxDiscount > 0 && <span className="block text-xs text-gray-500">Max: ₹{coupon.maxDiscount}</span>}
                                     </td>
-                                    <td className="p-4 text-sm text-gray-600">{new Date(coupon.expiryDate).toLocaleDateString()}</td>
+                                    <td className="p-4 text-sm text-gray-600">
+                                        {new Date(coupon.expiryDate).toLocaleDateString()}
+                                        {isExpired && <span className="ml-2 bg-red-100 text-red-700 px-2 py-0.5 rounded text-xs font-bold">Expired</span>}
+                                    </td>
                                     <td className="p-4 text-sm text-gray-600">
                                         {coupon.usedCount} / {coupon.usageLimit ? coupon.usageLimit : '∞'}
+                                        {coupon.usedBy && coupon.usedBy.length > 0 && <span className="block text-xs text-gray-400">{coupon.usedBy.length} unique users</span>}
                                     </td>
                                     <td className="p-4">
                                         {coupon.isWelcomeCoupon && <span className="bg-purple-100 text-purple-700 px-2 py-1 rounded text-xs font-bold">Welcome</span>}
                                     </td>
                                     <td className="p-4">
-                                        <span className={`px-2 py-1 rounded text-xs font-bold ${coupon.isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                                            {coupon.isActive ? 'Active' : 'Inactive'}
+                                        <span className={`px-2 py-1 rounded text-xs font-bold ${isExpired ? 'bg-red-100 text-red-700' : coupon.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
+                                            {isExpired ? 'Expired' : coupon.isActive ? 'Active' : 'Inactive'}
                                         </span>
                                     </td>
                                     <td className="p-4 flex gap-2">
@@ -156,7 +162,8 @@ const Coupons = () => {
                                         <button onClick={() => handleDelete(coupon._id)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"><Trash2 size={16} /></button>
                                     </td>
                                 </tr>
-                            ))}
+                                );
+                            })}
                             {coupons.length === 0 && (
                                 <tr>
                                     <td colSpan="7" className="p-8 text-center text-gray-500">No coupons found.</td>

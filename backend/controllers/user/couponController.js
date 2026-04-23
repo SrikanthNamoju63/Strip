@@ -19,6 +19,21 @@ exports.getWelcomeCoupon = async (req, res) => {
             return res.json({ coupon: null, msg: 'No welcome coupon available' });
         }
 
+        // Check if coupon has expired
+        if (new Date(welcomeCoupon.expiryDate) < new Date()) {
+            return res.json({ coupon: null, msg: 'Welcome coupon has expired' });
+        }
+
+        // Check if this user already used this coupon
+        if (welcomeCoupon.usedBy && welcomeCoupon.usedBy.some(id => id.toString() === userId.toString())) {
+            return res.json({ coupon: null, msg: 'User already used this coupon' });
+        }
+
+        // Check global usage limit
+        if (welcomeCoupon.usageLimit && welcomeCoupon.usedCount >= welcomeCoupon.usageLimit) {
+            return res.json({ coupon: null, msg: 'Coupon usage limit reached' });
+        }
+
         res.json({ coupon: welcomeCoupon });
     } catch (err) {
         console.error(err.message);
@@ -42,9 +57,14 @@ exports.validateCoupon = async (req, res) => {
             return res.status(400).json({ msg: 'Coupon has expired' });
         }
 
-        // Check usage limit
+        // Check global usage limit
         if (coupon.usageLimit && coupon.usedCount >= coupon.usageLimit) {
             return res.status(400).json({ msg: 'Coupon usage limit reached' });
+        }
+
+        // Check if this user already used this coupon
+        if (coupon.usedBy && coupon.usedBy.some(id => id.toString() === userId.toString())) {
+            return res.status(400).json({ msg: 'You have already used this coupon' });
         }
 
         // Check user specific (e.g. welcome coupon)

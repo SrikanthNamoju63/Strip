@@ -35,6 +35,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Map<String, dynamic>? _userProfile;
   bool _isLoading = true;
   List<Map<String, dynamic>> _todayMedicines = [];
+  bool _welcomeCouponShown = false;
 
   // Banner State
   final PageController _pageController = PageController();
@@ -203,12 +204,17 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   void _checkWelcomeCoupon() async {
+    // Only show once per session
+    if (_welcomeCouponShown) return;
+
     final res = await _apiService.getWelcomeCoupon();
     if (res != null && res['coupon'] != null) {
       if (mounted) {
+        _welcomeCouponShown = true; // Mark as shown for this session
         final coupon = res['coupon'];
         showDialog(
           context: context,
+          barrierDismissible: false,
           builder: (ctx) => AlertDialog(
             title: Row(
               children: [

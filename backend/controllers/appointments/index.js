@@ -119,6 +119,13 @@ exports.bookAppointment = async (req, res) => {
                 }
 
                 if (isValid) {
+                    // Check if this user already used this coupon
+                    if (coupon.usedBy && coupon.usedBy.some(id => id.toString() === req.user.id.toString())) {
+                        isValid = false;
+                    }
+                }
+
+                if (isValid) {
                     if (coupon.discountType === 'PERCENTAGE') {
                         appliedDiscountAmount = (totalPaid * coupon.discountValue) / 100;
                     } else if (coupon.discountType === 'FLAT') {
@@ -138,8 +145,10 @@ exports.bookAppointment = async (req, res) => {
                     adminProfit = Math.round((adminProfit - appliedDiscountAmount) * 100) / 100;
                     appliedCouponCode = coupon.code;
                     
-                    // Increment coupon usage
+                    // Increment coupon usage and track user
                     coupon.usedCount += 1;
+                    if (!coupon.usedBy) coupon.usedBy = [];
+                    coupon.usedBy.push(req.user.id);
                     await coupon.save();
                 }
             }
