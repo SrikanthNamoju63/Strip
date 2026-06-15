@@ -50,7 +50,7 @@ const Reviews = () => {
 
             {loading ? (
                 <div className="flex justify-center p-12">
-                    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary"></div>
+                    <div className="loader"></div>
                 </div>
             ) : (
                 <div className="grid grid-cols-1 gap-6">

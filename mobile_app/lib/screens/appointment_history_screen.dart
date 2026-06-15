@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mobile_app/widgets/conic_loader.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import '../services/api_service.dart';
@@ -52,7 +53,7 @@ class _AppointmentHistoryScreenState extends State<AppointmentHistoryScreen> {
         elevation: 0,
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: ConicLoader())
           : RefreshIndicator(
               onRefresh: _fetchAppointments,
               child: _appointments.isEmpty

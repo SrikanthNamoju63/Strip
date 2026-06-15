@@ -26,7 +26,7 @@ const BloodDonations = () => {
 
             {loading ? (
                 <div className="flex items-center justify-center min-h-[400px]">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600"></div>
+                    <div className="loader"></div>
                 </div>
             ) : donations.length === 0 ? (
                 <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center flex flex-col items-center">

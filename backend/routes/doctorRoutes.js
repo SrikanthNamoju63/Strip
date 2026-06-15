@@ -16,8 +16,13 @@ const {
     updateHealthAnalysis,
     getPatientRecords,
     getDoctorNotifications,
-    markNotificationAsRead
+    markNotificationAsRead,
+    getDoctorStaff,
+    addDoctorStaff,
+    deleteDoctorStaff
 } = require('../controllers/user/doctorController');
+
+const { authorize } = auth;
 
 // ======================================
 // Static Routes (must be before /:id)
@@ -28,17 +33,22 @@ router.get('/', getAllDoctors);
 router.post('/', registerDoctor);
 
 router.get('/me', auth, getCurrentDoctor);
-router.put('/me', auth, updateCurrentDoctor);
-router.post('/change-password', auth, changePassword);
+router.put('/me', auth, authorize('DOCTOR'), updateCurrentDoctor);
+router.post('/change-password', auth, authorize('DOCTOR'), changePassword);
 
 // Image Uploads
-router.post('/upload-gallery-image', auth, require('../config/multer').single('image'), (req, res) => {
+router.post('/upload-gallery-image', auth, authorize('DOCTOR'), require('../config/multer').single('image'), (req, res) => {
     if (!req.file) return res.status(400).json({ msg: 'No file uploaded' });
     res.json({ url: `uploads/${req.file.filename}` });
 });
 
 // Finance
-router.get('/settlements', auth, require('../controllers/finance').getDoctorSettlements);
+router.get('/settlements', auth, authorize('DOCTOR'), require('../controllers/finance').getDoctorSettlements);
+
+// Staff Management
+router.get('/me/staff', auth, authorize('DOCTOR'), getDoctorStaff);
+router.post('/me/staff', auth, authorize('DOCTOR'), addDoctorStaff);
+router.delete('/me/staff/:staffId', auth, authorize('DOCTOR'), deleteDoctorStaff);
 
 // Doctor-specific features
 router.get('/health-analysis/list', auth, getDoctorHealthAnalysis);

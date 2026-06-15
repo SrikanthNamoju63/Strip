@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mobile_app/widgets/conic_loader.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'dart:convert';
@@ -95,7 +96,7 @@ class _MedicineRemindersScreenState extends State<MedicineRemindersScreen> {
         ],
       ),
       body: isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: ConicLoader())
           : reminders.isEmpty
               ? const EmptyStateWidget(
                   title: 'No Reminders',

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mobile_app/widgets/conic_loader.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../services/api_service.dart';
 import '../widgets/empty_state_widget.dart';
@@ -186,7 +187,7 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
       appBar: AppBar(title: const Text('Emergency Contacts'), elevation: 0),
       body:
           isLoading
-              ? const Center(child: CircularProgressIndicator())
+              ? const Center(child: ConicLoader())
               : contacts.isEmpty
               ? EmptyStateWidget(
                 title: 'No Emergency Contacts',

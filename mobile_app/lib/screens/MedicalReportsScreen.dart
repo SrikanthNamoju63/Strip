@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:mobile_app/widgets/conic_loader.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../services/api_service.dart';
 import '../widgets/empty_state_widget.dart';
 
 class MedicalReportsScreen extends StatefulWidget {
-  const MedicalReportsScreen({Key? key}) : super(key: key);
+  const MedicalReportsScreen({super.key});
 
   @override
   State<MedicalReportsScreen> createState() => _MedicalReportsScreenState();
@@ -173,7 +174,7 @@ class _MedicalReportsScreenState extends State<MedicalReportsScreen> {
       appBar: AppBar(title: const Text('Medical Reports'), elevation: 0),
       body:
           isLoading
-              ? const Center(child: CircularProgressIndicator())
+              ? const Center(child: ConicLoader())
               : reports.isEmpty
               ? EmptyStateWidget(
                 title: 'No Medical Reports',

@@ -2,6 +2,9 @@ const mongoose = require('mongoose');
 
 const doctorSchema = new mongoose.Schema({
     name: { type: String, required: true },
+    firstName: { type: String },
+    lastName: { type: String },
+    doctorId: { type: String, unique: true, sparse: true, index: true },
     email: { type: String, required: true, unique: true, index: true },
     personalPhone: { type: String, required: true, unique: true },
     hospitalPhone: { type: String },
@@ -63,6 +66,7 @@ const doctorSchema = new mongoose.Schema({
     diseaseImages: [{ type: String }],
     clinicImages: [{ type: String }],
     genderPreference: { type: String, enum: ['Male', 'Female', 'Both'], default: 'Both' },
+    gender: { type: String, enum: ['Male', 'Female', 'Other'] },
 
     specialization: { type: String, index: true },
     experience: { type: Number },

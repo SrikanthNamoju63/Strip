@@ -12,16 +12,14 @@ exports.getWelcomeCoupon = async (req, res) => {
             return res.json({ coupon: null, msg: 'User already has an appointment' });
         }
 
-        const welcomeCoupon = await Coupon.findOne({ isWelcomeCoupon: true, isActive: true })
-            .sort({ createdAt: -1 });
+        const welcomeCoupon = await Coupon.findOne({ 
+            isWelcomeCoupon: true, 
+            isActive: true,
+            expiryDate: { $gte: new Date() }
+        }).sort({ createdAt: -1 });
 
         if (!welcomeCoupon) {
             return res.json({ coupon: null, msg: 'No welcome coupon available' });
-        }
-
-        // Check if coupon has expired
-        if (new Date(welcomeCoupon.expiryDate) < new Date()) {
-            return res.json({ coupon: null, msg: 'Welcome coupon has expired' });
         }
 
         // Check if this user already used this coupon

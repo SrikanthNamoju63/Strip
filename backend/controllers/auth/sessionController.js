@@ -18,6 +18,13 @@ exports.verifySession = async (req, res) => {
             if (!user) {
                 return res.status(401).json({ msg: 'Doctor profile not found' });
             }
+        } else if (['RECEPTIONIST', 'NURSE'].includes(role)) {
+            const Staff = require('../../models/Staff');
+            const staffId = req.user.staffId || id;
+            user = await Staff.findById(staffId).select('-passwordHash');
+            if (!user) {
+                return res.status(401).json({ msg: 'Staff profile not found' });
+            }
         } else if (role.includes('ADMIN')) {
             user = await Admin.findById(id).select('-passwordHash');
             if (!user) {
@@ -40,7 +47,7 @@ exports.verifySession = async (req, res) => {
                 phone: user.phone || user.personalPhone,
                 role: role,
                 avatar: user.avatar || user.doctorPhoto,
-                verified: user.verified || user.isVerified || false,
+                verified: user.verified || user.isVerified || true,
                 ...(role === 'DOCTOR' && {
                     specialization: user.specialization,
                     consultationFee: user.consultationFee,
@@ -50,6 +57,10 @@ exports.verifySession = async (req, res) => {
                 ...((role.includes('ADMIN')) && {
                     isSuperAdmin: role === 'SUPER_ADMIN',
                     permissions: user.permissions || []
+                }),
+                ...((['RECEPTIONIST', 'NURSE'].includes(role)) && {
+                    doctorId: user.doctorId,
+                    staffId: user.staffId
                 })
             }
         });
@@ -86,12 +97,15 @@ exports.refreshToken = async (req, res) => {
     try {
         const { id, role, isDoctorModel } = req.user;
 
+        const isStaff = ['RECEPTIONIST', 'NURSE'].includes(role);
+        
         // Generate new token with extended expiry
         const payload = {
             user: {
-                id: id,
+                id: isStaff ? req.user.staffId : id,
                 role: role,
-                isDoctorModel: isDoctorModel || false
+                isDoctorModel: isDoctorModel || false,
+                ...(isStaff && { doctorId: id })
             }
         };
 

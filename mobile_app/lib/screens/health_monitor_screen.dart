@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:mobile_app/widgets/conic_loader.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/smart_watch_service.dart';
 import '../services/api_service.dart';
@@ -306,7 +307,7 @@ class _HealthMonitorScreenState extends State<HealthMonitorScreen> {
                           ? const SizedBox(
                             width: 20,
                             height: 20,
-                            child: CircularProgressIndicator(
+                            child: ConicLoader(
                               color: Colors.white,
                               strokeWidth: 2,
                             ),
@@ -405,7 +406,7 @@ class _HealthMonitorScreenState extends State<HealthMonitorScreen> {
                       ? const SizedBox(
                         width: 20,
                         height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
+                        child: ConicLoader(strokeWidth: 2),
                       )
                       : const Text("Connect Device"),
             ),

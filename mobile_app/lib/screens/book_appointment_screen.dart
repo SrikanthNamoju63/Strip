@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mobile_app/widgets/conic_loader.dart';
 import 'package:intl/intl.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
 import '../services/api_service.dart';
@@ -40,6 +41,7 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
 
   String _paymentMethod = 'UPI';
   String _gender = 'Male';
+  String _consultationType = 'IN_PERSON';
   
   // Fees
   double _platformFee = 10.0; // Default fallback
@@ -65,6 +67,10 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
           'T',
         )[0];
     _selectedTime = widget.preSelectedSlot;
+
+    if (widget.doctor['consultationModes'] != null && (widget.doctor['consultationModes'] as List).isNotEmpty) {
+      _consultationType = (widget.doctor['consultationModes'] as List).first.toString();
+    }
 
     // Fetch slots for the date
     _fetchSlots();
@@ -453,7 +459,58 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
                   ),
                   subtitle: Text(widget.doctor['specialization'] ?? ''),
                 ),
+                if (widget.doctor['clinicAddress'] != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 16.0),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(Icons.location_on_outlined, size: 16, color: Colors.grey),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            "${widget.doctor['clinicAddress']['name'] ?? ''}, ${widget.doctor['clinicAddress']['street'] ?? ''}, ${widget.doctor['clinicAddress']['city'] ?? ''}",
+                            style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 Divider(),
+
+                // Consultation Mode Selection
+                if (widget.doctor['consultationModes'] != null && (widget.doctor['consultationModes'] as List).isNotEmpty)
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SizedBox(height: 8),
+                      Text(
+                        "Consultation Mode",
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+                      SizedBox(height: 8),
+                      DropdownButtonFormField<String>(
+                        value: _consultationType,
+                        decoration: InputDecoration(
+                          border: OutlineInputBorder(),
+                          contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        ),
+                        items: (widget.doctor['consultationModes'] as List)
+                            .map((mode) => DropdownMenuItem(
+                                  value: mode.toString(),
+                                  child: Text(mode.toString() == 'VIDEO' ? 'Video Consultation' : 'In-Clinic (In-Person)'),
+                                ))
+                            .toList(),
+                        onChanged: (value) {
+                          if (value != null) {
+                            setState(() => _consultationType = value);
+                          }
+                        },
+                      ),
+                      SizedBox(height: 16),
+                      Divider(),
+                    ],
+                  ),
 
                 // Checkbox
                 Row(
@@ -584,7 +641,7 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
                 SizedBox(height: 8),
 
                 if (_loadingSlots)
-                  Center(child: CircularProgressIndicator())
+                  Center(child: ConicLoader())
                 else if (_slots.isEmpty)
                   Padding(
                     padding: const EdgeInsets.all(8.0),
@@ -702,7 +759,7 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
                         foregroundColor: _appliedCoupon.isNotEmpty ? Colors.red : Colors.indigo,
                         elevation: 0,
                       ),
-                      child: _isValidatingCoupon ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)) 
+                      child: _isValidatingCoupon ? SizedBox(width: 20, height: 20, child: ConicLoader(strokeWidth: 2)) 
                                                  : Text(_appliedCoupon.isNotEmpty ? "Remove" : "Apply"),
                     ),
                   ],
@@ -728,7 +785,7 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
                               style: TextStyle(fontSize: 14),
                             ),
                             Text(
-                              "₹${widget.doctor['consultationFee'] ?? 0}",
+                              "₹${((widget.doctor['consultationFee'] ?? 0) as num).toStringAsFixed(2)}",
                               style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.bold,
@@ -834,7 +891,7 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
                   ),
                   child:
                       _isLoading
-                          ? CircularProgressIndicator(color: Colors.white)
+                          ? ConicLoader(color: Colors.white)
                           : Text(
                             "Pay & Book Appointment",
                             style: TextStyle(fontSize: 18, color: Colors.white),

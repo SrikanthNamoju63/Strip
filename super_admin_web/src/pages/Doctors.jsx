@@ -30,7 +30,7 @@ const DoctorAvatar = ({ doc, getInitials }) => {
             </div>
             <div>
                 <div className="font-semibold text-slate-800">{doc.name}</div>
-                <div className="text-xs text-slate-400 font-mono">ID: {doc._id.substring(doc._id.length - 6)}</div>
+                <div className="text-xs text-slate-400 font-mono">ID: {doc.doctorId || doc._id.substring(doc._id.length - 6)}</div>
             </div>
         </div>
     );

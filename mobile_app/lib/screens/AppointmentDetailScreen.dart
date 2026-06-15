@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mobile_app/widgets/conic_loader.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../services/api_service.dart';
 
@@ -75,7 +76,7 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
       appBar: AppBar(title: const Text('Appointment Details'), elevation: 0),
       body:
           isLoading
-              ? const Center(child: CircularProgressIndicator())
+              ? const Center(child: ConicLoader())
               : appointmentData == null
               ? const Center(child: Text('Appointment not found'))
               : SingleChildScrollView(
@@ -187,7 +188,7 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
         _buildDetailRow(
           icon: Icons.currency_rupee,
           label: 'Consultation Fee',
-          value: '₹ $fee',
+          value: '₹ ${(fee as num).toStringAsFixed(2)}',
         ),
       ],
     ).animate().fadeIn(duration: 400.ms).slideY(begin: -0.2, duration: 400.ms);

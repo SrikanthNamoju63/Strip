@@ -153,7 +153,7 @@ const UserDetails = () => {
     if (error) return <div className="p-10 text-center text-red-500 font-medium bg-red-50 rounded-xl m-8">{error}</div>;
     if (loading || !data) return (
         <div className="flex items-center justify-center min-h-[500px]">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            <div className="loader"></div>
         </div>
     );
 
@@ -192,6 +192,11 @@ const UserDetails = () => {
                             <div>
                                 <h1 className="text-3xl font-bold text-slate-900 mb-2">{user.name}</h1>
                                 <div className="flex flex-wrap gap-3">
+                                    {user.userNumber && (
+                                        <span className="px-3 py-1 bg-indigo-50 text-indigo-700 border border-indigo-100 rounded-full text-xs font-mono font-bold flex items-center gap-1">
+                                            User ID: {user.userNumber}
+                                        </span>
+                                    )}
                                     <span className="px-3 py-1 bg-slate-100 text-slate-600 rounded-full text-xs font-bold flex items-center gap-1">
                                         <Clock size={12} /> Joined: {new Date(user.createdAt).toLocaleDateString('en-GB')}
                                     </span>
@@ -582,7 +587,7 @@ const UserDetails = () => {
                                             <label className="block text-sm font-medium text-slate-700 mb-2 mt-4">Select Time Slot</label>
                                             {loadingSlots ? (
                                                 <div className="flex justify-center p-4">
-                                                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                                                    <div className="loader"></div>
                                                 </div>
                                             ) : (
                                                 <div className="grid grid-cols-3 gap-2 max-h-48 overflow-y-auto p-1 border border-slate-100 rounded-lg bg-slate-50/50">

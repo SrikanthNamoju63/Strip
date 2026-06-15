@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mobile_app/widgets/conic_loader.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
@@ -125,7 +126,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
             Container(
               color: Colors.black54,
               child: const Center(
-                child: CircularProgressIndicator(),
+                child: ConicLoader(),
               ),
             ),
           Positioned(

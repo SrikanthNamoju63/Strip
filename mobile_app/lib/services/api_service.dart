@@ -51,7 +51,7 @@ class ApiService {
     }
   }
 
-  Future<String?> register(
+  Future<Map<String, dynamic>> register(
     String name,
     String email,
     String phone,
@@ -69,23 +69,28 @@ class ApiService {
           'password': password,
           'role': 'USER',
           'dob': dob.toIso8601String(),
-          'age':
-              (DateTime.now().year -
-                  dob.year), // Approximate age for initial sign up
+          'age': (DateTime.now().year - dob.year), // Approximate age for initial sign up
         }),
       );
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final token = data['token'];
+        final userNumber = data['userNumber'];
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('token', token);
-        return null;
+        if (userNumber != null) {
+          await prefs.setString('userNumber', userNumber);
+        }
+        return {'success': true, 'userNumber': userNumber};
       } else {
-        return jsonDecode(response.body)['msg'] ?? 'Registration failed';
+        return {
+          'success': false,
+          'error': jsonDecode(response.body)['msg'] ?? 'Registration failed'
+        };
       }
     } catch (e) {
-      return 'Connection error: $e';
+      return {'success': false, 'error': 'Connection error: $e'};
     }
   }
 
@@ -1028,6 +1033,26 @@ class ApiService {
       return null;
     } catch (e) {
       _Log.error('Send Health Reading Error', e);
+      return null;
+    }
+  }
+
+  Future<Map<String, dynamic>?> analyzeHealth() async {
+    try {
+      final token = await _getToken();
+      if (token == null) return null;
+
+      final response = await http.post(
+        Uri.parse('$baseUrl/health/analyze'),
+        headers: {'Content-Type': 'application/json', 'x-auth-token': token},
+      );
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      }
+      return null;
+    } catch (e) {
+      _Log.error('Analyze Health Error', e);
       return null;
     }
   }

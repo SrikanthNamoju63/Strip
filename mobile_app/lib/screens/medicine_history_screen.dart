@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mobile_app/widgets/conic_loader.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/db_helper.dart';
 
@@ -60,7 +61,7 @@ class _MedicineHistoryScreenState extends State<MedicineHistoryScreen> {
         iconTheme: const IconThemeData(color: Colors.black87),
       ),
       body: isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: ConicLoader())
           : history.isEmpty
               ? Center(
                   child: Text(

@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { registerUser, loginUser, registerDoctor, loginDoctor, forgotPassword } = require('../controllers/auth');
+const { registerUser, loginUser, registerDoctor, loginDoctor, forgotPassword, getPincodeDetails } = require('../controllers/auth');
 
 // @route   POST api/auth/register
 // @desc    Register user
@@ -26,5 +26,10 @@ router.post('/login-doctor', loginDoctor);
 // @desc    Forgot Password
 // @access  Public
 router.post('/forgot-password', forgotPassword);
+
+// @route   GET api/auth/pincode/:pincode
+// @desc    Get city, district, state details from pincode
+// @access  Public
+router.get('/pincode/:pincode', getPincodeDetails);
 
 module.exports = router;

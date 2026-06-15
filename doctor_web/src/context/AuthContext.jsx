@@ -38,7 +38,16 @@ export const AuthProvider = ({ children }) => {
             const response = await api.get('/session/verify');
 
             if (response.data.isValid && response.data.user) {
-                setUser(response.data.user);
+                let userObj = response.data.user;
+                if (userObj.role === 'DOCTOR') {
+                    try {
+                        const profileResponse = await api.get('/doctors/me');
+                        userObj = { ...userObj, ...profileResponse.data };
+                    } catch (profileErr) {
+                        console.error('Failed to merge doctor profile details:', profileErr);
+                    }
+                }
+                setUser(userObj);
                 setIsSessionValid(true);
                 setTokenRefreshError(null);
             } else {
@@ -63,10 +72,10 @@ export const AuthProvider = ({ children }) => {
     /**
      * Login user and start session
      */
-    const login = useCallback(async (email, password) => {
+    const login = useCallback(async (username, password) => {
         try {
             setLoading(true);
-            const response = await api.post('/auth/login-doctor', { email, password });
+            const response = await api.post('/auth/login-doctor', { email: username, username, password });
 
             if (response.data.token) {
                 localStorage.setItem('token', response.data.token);

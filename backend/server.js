@@ -209,7 +209,9 @@ const connectDB = require('./config/db');
 
 console.log('Connecting to DB...');
 try {
-  connectDB();
+  if (process.env.NODE_ENV !== 'test') {
+    connectDB();
+  }
 } catch (err) {
   console.error('DB Connection Error:', err);
 }
@@ -220,72 +222,75 @@ try {
 
 const PORT = process.env.PORT || 5000;
 
-const server = app.listen(PORT, () => {
-  console.log(`
-╔════════════════════════════════════════════════════════════════╗
-║                 HEALTHCARE PLATFORM API                        ║
-║           Phase 1 - Security Hardening Complete                ║
-╠════════════════════════════════════════════════════════════════╣
-║ Server:     http://localhost:${PORT}                              ║
-║ Environment: ${(process.env.NODE_ENV || 'development').padEnd(44)}║
-║ Timestamp:  ${new Date().toISOString().padEnd(44)}║
-║                                                                ║
-║ Security Features ENABLED:                                     ║
-║  ✓ Helmet Security Headers                                    ║
-║  ✓ CORS Whitelist                                             ║
-║  ✓ Input Validation & Sanitization                            ║
-║  ✓ Rate Limiting (Auth, API, Payment)                         ║
-║  ✓ JWT Refresh Token Flow                                     ║
-║  ✓ Token Blacklist on Logout                                  ║
-║  ✓ Request Size Limits                                        ║
-║  ✓ XSS & SQLi Protection                                      ║
-║                                                                ║
-║ Audit Fixes: Phase 1 vulnerabilities addressed                 ║
-║  - V1: Weak JWT Secret (CVSS 9.1)                              ║
-║  - V3: No Token Blacklist (CVSS 8.5)                           ║
-║  - V4: Open CORS (CVSS 7.5)                                    ║
-║  - V5: No Rate Limiting (CVSS 8.3)                             ║
-║  - V6: No Input Validation (CVSS 8.0)                          ║
-║  - V7: Missing Helmet (CVSS 6.5)                               ║
-╚════════════════════════════════════════════════════════════════╝
-  `);
+let server;
+if (process.env.NODE_ENV !== 'test') {
+  server = app.listen(PORT, () => {
+    console.log(`
+  ╔════════════════════════════════════════════════════════════════╗
+  ║                 HEALTHCARE PLATFORM API                        ║
+  ║           Phase 1 - Security Hardening Complete                ║
+  ╠════════════════════════════════════════════════════════════════╣
+  ║ Server:     http://localhost:${PORT}                              ║
+  ║ Environment: ${(process.env.NODE_ENV || 'development').padEnd(44)}║
+  ║ Timestamp:  ${new Date().toISOString().padEnd(44)}║
+  ║                                                                ║
+  ║ Security Features ENABLED:                                     ║
+  ║  ✓ Helmet Security Headers                                    ║
+  ║  ✓ CORS Whitelist                                             ║
+  ║  ✓ Input Validation & Sanitization                            ║
+  ║  ✓ Rate Limiting (Auth, API, Payment)                         ║
+  ║  ✓ JWT Refresh Token Flow                                     ║
+  ║  ✓ Token Blacklist on Logout                                  ║
+  ║  ✓ Request Size Limits                                        ║
+  ║  ✓ XSS & SQLi Protection                                      ║
+  ║                                                                ║
+  ║ Audit Fixes: Phase 1 vulnerabilities addressed                 ║
+  ║  - V1: Weak JWT Secret (CVSS 9.1)                              ║
+  ║  - V3: No Token Blacklist (CVSS 8.5)                           ║
+  ║  - V4: Open CORS (CVSS 7.5)                                    ║
+  ║  - V5: No Rate Limiting (CVSS 8.3)                             ║
+  ║  - V6: No Input Validation (CVSS 8.0)                          ║
+  ║  - V7: Missing Helmet (CVSS 6.5)                               ║
+  ╚════════════════════════════════════════════════════════════════╝
+    `);
 
-  // Initialize Socket.io
-  try {
-    const socketManager = require('./utils/socket');
-    socketManager.init(server);
-    console.log('✓ Socket.io initialized');
-  } catch (e) {
-    console.warn('⚠ Socket.io initialization skipped:', e.message);
-  }
-
-  // Initialize Cron Jobs
-  try {
-    require('./utils/cron')();
-    console.log('✓ Cron jobs initialized');
-  } catch (e) {
-    console.warn('⚠ Cron initialization skipped:', e.message);
-  }
-});
-
-server.on('error', (e) => {
-  console.error('Server error:', e);
-});
-
-// Graceful shutdown
-process.on('SIGINT', () => {
-  console.log('\n📋 Shutting down gracefully...');
-  server.close(async () => {
-    console.log('✓ Server closed');
+    // Initialize Socket.io
     try {
-      await mongoose.connection.close();
-      console.log('✓ Database connection closed');
-      process.exit(0);
-    } catch (err) {
-      console.error('Error closing database connection:', err);
-      process.exit(1);
+      const socketManager = require('./utils/socket');
+      socketManager.init(server);
+      console.log('✓ Socket.io initialized');
+    } catch (e) {
+      console.warn('⚠ Socket.io initialization skipped:', e.message);
+    }
+
+    // Initialize Cron Jobs
+    try {
+      require('./utils/cron')();
+      console.log('✓ Cron jobs initialized');
+    } catch (e) {
+      console.warn('⚠ Cron initialization skipped:', e.message);
     }
   });
-});
+
+  server.on('error', (e) => {
+    console.error('Server error:', e);
+  });
+
+  // Graceful shutdown
+  process.on('SIGINT', () => {
+    console.log('\n📋 Shutting down gracefully...');
+    server.close(async () => {
+      console.log('✓ Server closed');
+      try {
+        await mongoose.connection.close();
+        console.log('✓ Database connection closed');
+        process.exit(0);
+      } catch (err) {
+        console.error('Error closing database connection:', err);
+        process.exit(1);
+      }
+    });
+  });
+}
 
 module.exports = app;

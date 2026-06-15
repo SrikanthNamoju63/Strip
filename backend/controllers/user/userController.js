@@ -33,7 +33,11 @@ exports.updateUserProfile = async (req, res) => {
 
         if (name) user.name = name;
         if (age) user.age = age;
-        if (dob) user.dob = new Date(dob);
+        if (dob) {
+            user.dob = new Date(dob);
+            const { calculateAge } = require('../../helpers');
+            user.age = calculateAge(dob);
+        }
         if (height) user.height = height;
         if (weight) user.weight = weight;
         if (gender) user.gender = gender;

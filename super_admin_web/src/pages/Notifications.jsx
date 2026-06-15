@@ -87,7 +87,7 @@ const Notifications = () => {
                         className="w-full py-4 bg-blue-600 text-white rounded-xl font-bold text-lg hover:bg-blue-700 shadow-xl shadow-blue-200 transition-all disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     >
                         {isSending ? (
-                            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
+                            <div className="loader"></div>
                         ) : (
                             <> <Send size={20} /> Send Broadcast </>
                         )}

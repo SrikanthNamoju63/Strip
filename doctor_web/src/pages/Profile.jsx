@@ -1,24 +1,161 @@
 import React, { useEffect, useState } from 'react';
 import { getDoctorProfile, updateDoctorProfile, onboardDoctorToRazorpay, uploadGalleryImage } from '../services/api';
-import { Mail, Phone, MapPin, Award, Clock, IndianRupee, BookOpen, Building2, CreditCard, Edit2, Save, X, CheckCircle, Tag, Search, CheckSquare, Globe, Plus } from 'lucide-react';
+import { Mail, Phone, MapPin, Award, Clock, IndianRupee, BookOpen, Building2, CreditCard, Edit2, Save, X, CheckCircle, Tag, Search, CheckSquare, Globe, Plus, Users, Trash2, Copy, Eye, EyeOff } from 'lucide-react';
 import axios from 'axios';
 import DoctorQRCode from '../components/DoctorQRCode';
 import { toast } from 'react-hot-toast';
+import { useAuth } from '../hooks/useAuth';
 
 const Profile = () => {
+    const { user } = useAuth();
     const [profile, setProfile] = useState(null);
     const [loading, setLoading] = useState(true);
 
     // Separate Edit States
     const [isEditingProfile, setIsEditingProfile] = useState(false);
     const [isEditingBank, setIsEditingBank] = useState(false);
-
-    // Form Data
     const [editData, setEditData] = useState({});
+
+    // Staff Management States
+    const [staffList, setStaffList] = useState([]);
+    const [showAddStaffModal, setShowAddStaffModal] = useState(false);
+    const [newStaffData, setNewStaffData] = useState({ name: '', email: '', phone: '', password: '', role: 'RECEPTIONIST' });
+    const [showStaffPassword, setShowStaffPassword] = useState(false);
+    const [staffPasswordDisplayValue, setStaffPasswordDisplayValue] = useState('');
+    const [staffPasswordMaskTimeout, setStaffPasswordMaskTimeout] = useState(null);
+
+    const fetchStaff = async () => {
+        try {
+            const { getDoctorStaff } = await import('../services/api');
+            const data = await getDoctorStaff();
+            setStaffList(data);
+        } catch (e) {
+            console.error('Failed to fetch staff:', e);
+        }
+    };
+
+    const handleNewStaffChange = (e) => {
+        const { name, value } = e.target;
+        if (name === 'phone') {
+            const digits = value.replace(/\D/g, '').slice(0, 10);
+            setNewStaffData(prev => ({ ...prev, phone: digits }));
+            return;
+        }
+        setNewStaffData(prev => ({ ...prev, [name]: value }));
+    };
+
+    const handleStaffPasswordChange = (e) => {
+        const val = e.target.value;
+        
+        if (showStaffPassword) {
+            setNewStaffData(prev => ({ ...prev, password: val }));
+            setStaffPasswordDisplayValue(val);
+            return;
+        }
+
+        if (val.length === 0) {
+            setNewStaffData(prev => ({ ...prev, password: '' }));
+            setStaffPasswordDisplayValue('');
+            if (staffPasswordMaskTimeout) clearTimeout(staffPasswordMaskTimeout);
+            return;
+        }
+
+        if (!val.includes('•')) {
+            setNewStaffData(prev => ({ ...prev, password: val }));
+            const maskedPart = '•'.repeat(val.length - 1);
+            const lastChar = val.charAt(val.length - 1);
+            setStaffPasswordDisplayValue(maskedPart + lastChar);
+
+            if (staffPasswordMaskTimeout) clearTimeout(staffPasswordMaskTimeout);
+
+            const timer = setTimeout(() => {
+                setStaffPasswordDisplayValue('•'.repeat(val.length));
+            }, 800);
+            setStaffPasswordMaskTimeout(timer);
+            return;
+        }
+
+        let newReal = '';
+        const rawPassword = newStaffData.password;
+        if (val.length < rawPassword.length) {
+            newReal = rawPassword.slice(0, val.length);
+        } else {
+            const addedLength = val.length - rawPassword.length;
+            const addedText = val.slice(val.length - addedLength);
+            newReal = rawPassword + addedText;
+        }
+
+        setNewStaffData(prev => ({ ...prev, password: newReal }));
+
+        const maskedPart = '•'.repeat(newReal.length - 1);
+        const lastChar = newReal.charAt(newReal.length - 1);
+        setStaffPasswordDisplayValue(maskedPart + lastChar);
+
+        if (staffPasswordMaskTimeout) clearTimeout(staffPasswordMaskTimeout);
+
+        const timer = setTimeout(() => {
+            setStaffPasswordDisplayValue('•'.repeat(newReal.length));
+        }, 800);
+        setStaffPasswordMaskTimeout(timer);
+    };
+
+    const toggleShowStaffPassword = () => {
+        const nextShow = !showStaffPassword;
+        setShowStaffPassword(nextShow);
+        const rawPassword = newStaffData.password;
+        if (nextShow) {
+            setStaffPasswordDisplayValue(rawPassword);
+        } else {
+            setStaffPasswordDisplayValue('•'.repeat(rawPassword.length));
+        }
+    };
+
+    const handleCreateStaff = async () => {
+        const { name, email, phone, password } = newStaffData;
+        if (!name || !email || !phone || !password) {
+            toast.error("Please fill in all staff fields.");
+            return;
+        }
+
+        if (phone.length !== 10) {
+            toast.error("Phone number must be exactly 10 digits.");
+            return;
+        }
+
+        try {
+            const { addDoctorStaff } = await import('../services/api');
+            const created = await addDoctorStaff(newStaffData);
+            setShowAddStaffModal(false);
+            setNewStaffData({ name: '', email: '', phone: '', password: '', role: 'RECEPTIONIST' });
+            setStaffPasswordDisplayValue('');
+            setShowStaffPassword(false);
+            fetchStaff();
+            toast.success(`Staff Account Created Successfully!\nLogin ID: ${created.staffId || 'N/A'}`);
+        } catch (e) {
+            console.error(e);
+            toast.error(e.response?.data?.msg || "Failed to create staff account");
+        }
+    };
+
+    const handleDeleteStaff = async (staffId) => {
+        if (!confirm("Are you sure you want to delete this staff member? This will immediately revoke their access.")) return;
+        try {
+            const { deleteDoctorStaff } = await import('../services/api');
+            await deleteDoctorStaff(staffId);
+            toast.success("Staff account deleted!");
+            fetchStaff();
+        } catch (e) {
+            console.error(e);
+            toast.error("Failed to delete staff account");
+        }
+    };
 
     useEffect(() => {
         fetchProfile();
-    }, []);
+        if (user?.role === 'DOCTOR') {
+            fetchStaff();
+        }
+    }, [user]);
 
     const fetchProfile = async () => {
         try {
@@ -69,7 +206,7 @@ const Profile = () => {
     const verifyIFSC = async () => {
         const ifsc = editData.bankDetails?.ifscCode;
         if (!ifsc || ifsc.length !== 11) {
-            alert("Please enter a valid 11-digit IFSC code");
+            toast.error("Please enter a valid 11-digit IFSC code");
             return;
         }
         try {
@@ -82,9 +219,9 @@ const Profile = () => {
                     branchName: res.data.BRANCH
                 }
             }));
-            alert(`Verified: ${res.data.BANK}, ${res.data.BRANCH}`);
+            toast.success(`Verified: ${res.data.BANK}, ${res.data.BRANCH}`);
         } catch (e) {
-            alert("Invalid IFSC Code");
+            toast.error("Invalid IFSC Code");
         }
     };
 
@@ -95,10 +232,10 @@ const Profile = () => {
             setProfile(updatedProfile);
             setEditData(JSON.parse(JSON.stringify(updatedProfile)));
             setIsEditingProfile(false);
-            alert("Profile Details Updated!");
+            toast.success("Profile Details Updated!");
         } catch (e) {
             console.error(e);
-            alert("Failed to update profile");
+            toast.error("Failed to update profile");
         }
     };
 
@@ -108,10 +245,10 @@ const Profile = () => {
             setProfile(updatedProfile);
             setEditData(JSON.parse(JSON.stringify(updatedProfile)));
             setIsEditingBank(false);
-            alert("Bank Details Updated!");
+            toast.success("Bank Details Updated!");
         } catch (e) {
             console.error(e);
-            alert("Failed to update bank details");
+            toast.error("Failed to update bank details");
         }
     };
 
@@ -120,11 +257,11 @@ const Profile = () => {
             if (!confirm("Are you sure you want to activate payouts? This will link your bank account to our payment partner.")) return;
 
             await onboardDoctorToRazorpay();
-            alert("Payout Activation Initiated! Please allow some time for verification.");
+            toast.success("Payout Activation Initiated! Please allow some time for verification.");
             fetchProfile(); // Refresh to see status
         } catch (error) {
             console.error(error);
-            alert(error.response?.data?.message || "Activation Failed");
+            toast.error(error.response?.data?.message || "Activation Failed");
         }
     };
 
@@ -205,7 +342,7 @@ const Profile = () => {
 
     if (loading) return (
         <div className="flex items-center justify-center min-h-[60vh]">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+            <div className="loader"></div>
         </div>
     );
 
@@ -221,15 +358,17 @@ const Profile = () => {
                 <div className="bg-gradient-to-r from-blue-600 to-indigo-700 h-32"></div>
 
                 {/* Main Profile Edit Button */}
-                <button
-                    onClick={handleProfileEditToggle}
-                    className="absolute top-4 right-4 bg-white/20 hover:bg-white/30 backdrop-blur-md text-white px-4 py-2 rounded-full flex items-center gap-2 transition z-10"
-                >
-                    {isEditingProfile ? <X size={18} /> : <Edit2 size={18} />}
-                    {isEditingProfile ? 'Cancel' : 'Edit Profile'}
-                </button>
+                {user?.role === 'DOCTOR' && (
+                    <button
+                        onClick={handleProfileEditToggle}
+                        className="absolute top-4 right-4 bg-white/20 hover:bg-white/30 backdrop-blur-md text-white px-4 py-2 rounded-full flex items-center gap-2 transition z-10"
+                    >
+                        {isEditingProfile ? <X size={18} /> : <Edit2 size={18} />}
+                        {isEditingProfile ? 'Cancel' : 'Edit Profile'}
+                    </button>
+                )}
 
-                {isEditingProfile && (
+                {user?.role === 'DOCTOR' && isEditingProfile && (
                     <button
                         onClick={handleSaveProfile}
                         className="absolute top-4 right-32 bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-full flex items-center gap-2 transition z-10 shadow-lg"
@@ -294,7 +433,7 @@ const Profile = () => {
                                 placeholder="Write a short bio..."
                             />
                         ) : (
-                            <p className="text-gray-600 leading-relaxed">{profile.bio || "No bio added yet."}</p>
+                            <p className="text-gray-600 leading-relaxed text-justify">{profile.bio || "No bio added yet."}</p>
                         )}
                     </div>
 
@@ -409,22 +548,24 @@ const Profile = () => {
                             <h2 className="text-lg font-bold flex items-center gap-2">
                                 <CreditCard className="text-blue-600" size={20} /> Bank & Payout Settings
                             </h2>
-                            <div className="flex gap-2">
-                                {isEditingBank ? (
-                                    <>
-                                        <button onClick={handleBankEditToggle} className="text-gray-500 hover:text-gray-700 p-2 rounded-full bg-gray-100">
-                                            <X size={18} />
+                            {user?.role === 'DOCTOR' && (
+                                <div className="flex gap-2">
+                                    {isEditingBank ? (
+                                        <>
+                                            <button onClick={handleBankEditToggle} className="text-gray-500 hover:text-gray-700 p-2 rounded-full bg-gray-100">
+                                                <X size={18} />
+                                            </button>
+                                            <button onClick={handleSaveBank} className="text-green-600 hover:text-green-700 flex items-center gap-1 px-3 py-1 rounded-full bg-green-50 font-bold border border-green-200">
+                                                <Save size={16} /> Save
+                                            </button>
+                                        </>
+                                    ) : (
+                                        <button onClick={handleBankEditToggle} className="text-blue-600 hover:text-blue-700 flex items-center gap-1 text-sm font-medium">
+                                            <Edit2 size={16} /> Edit Details
                                         </button>
-                                        <button onClick={handleSaveBank} className="text-green-600 hover:text-green-700 flex items-center gap-1 px-3 py-1 rounded-full bg-green-50 font-bold border border-green-200">
-                                            <Save size={16} /> Save
-                                        </button>
-                                    </>
-                                ) : (
-                                    <button onClick={handleBankEditToggle} className="text-blue-600 hover:text-blue-700 flex items-center gap-1 text-sm font-medium">
-                                        <Edit2 size={16} /> Edit Details
-                                    </button>
-                                )}
-                            </div>
+                                    )}
+                                </div>
+                            )}
                         </div>
 
                         {/* Payout Status Banner */}
@@ -717,6 +858,49 @@ const Profile = () => {
                         </div>
                     </div>
 
+                    {/* Staff / Receptionist Management Section */}
+                    {user?.role === 'DOCTOR' && (
+                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mt-6">
+                            <div className="flex justify-between items-center mb-4">
+                                <h2 className="text-lg font-bold flex items-center gap-2">
+                                    <Users className="text-blue-600" size={20} /> Staff & Receptionists
+                                </h2>
+                                <button
+                                    onClick={() => setShowAddStaffModal(true)}
+                                    className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 transition shadow-sm"
+                                >
+                                    <Plus size={14} /> Add Staff
+                                </button>
+                            </div>
+
+                            {staffList.length === 0 ? (
+                                <p className="text-gray-500 text-sm italic py-2">No staff accounts created yet.</p>
+                            ) : (
+                                <div className="space-y-3">
+                                    {staffList.map((staff) => (
+                                        <div key={staff._id} className="p-3 bg-gray-50 rounded-xl border border-gray-100 flex items-center justify-between">
+                                            <div>
+                                                <p className="font-bold text-gray-950 text-sm">{staff.name}</p>
+                                                <p className="text-xs text-gray-500">
+                                                    {staff.email} • {staff.phone}
+                                                    {staff.staffId && ` • ${staff.staffId}`}
+                                                </p>
+                                                <span className="inline-block px-2 py-0.5 mt-1 bg-blue-50 text-blue-700 border border-blue-100 rounded text-[10px] font-bold uppercase tracking-wider">{staff.role}</span>
+                                            </div>
+                                            <button
+                                                onClick={() => handleDeleteStaff(staff._id)}
+                                                className="text-red-500 hover:bg-red-50 hover:text-red-600 p-2 rounded-lg transition"
+                                                title="Delete Staff Account"
+                                            >
+                                                <Trash2 size={16} />
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    )}
+
                 </div>
 
                 {/* Right Column */}
@@ -792,6 +976,120 @@ const Profile = () => {
                     </div>
                 </div>
             </div>
+            {/* Add Staff Modal */}
+            {showAddStaffModal && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                    <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md border border-gray-100 relative">
+                        <button
+                            onClick={() => {
+                                setShowAddStaffModal(false);
+                                setNewStaffData({ name: '', email: '', phone: '', password: '', role: 'RECEPTIONIST' });
+                                setStaffPasswordDisplayValue('');
+                                setShowStaffPassword(false);
+                            }}
+                            className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
+                        >
+                            <X size={20} />
+                        </button>
+                        <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+                            <Users className="text-blue-600" size={24} /> Create Staff Login
+                        </h3>
+                        
+                        <div className="space-y-4">
+                            <div>
+                                <label className="text-xs font-bold text-gray-500 uppercase">Full Name</label>
+                                <input
+                                    type="text"
+                                    name="name"
+                                    value={newStaffData.name}
+                                    onChange={handleNewStaffChange}
+                                    placeholder="Enter full name"
+                                    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none mt-1"
+                                    required
+                                />
+                            </div>
+                            <div>
+                                <label className="text-xs font-bold text-gray-500 uppercase">Email (Username)</label>
+                                <input
+                                    type="email"
+                                    name="email"
+                                    value={newStaffData.email}
+                                    onChange={handleNewStaffChange}
+                                    placeholder="name@example.com"
+                                    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none mt-1"
+                                    required
+                                />
+                            </div>
+                            <div>
+                                <label className="text-xs font-bold text-gray-500 uppercase">Phone Number</label>
+                                <input
+                                    type="text"
+                                    name="phone"
+                                    value={newStaffData.phone}
+                                    onChange={handleNewStaffChange}
+                                    placeholder="10-digit number"
+                                    maxLength={10}
+                                    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none mt-1"
+                                    required
+                                />
+                            </div>
+                            <div>
+                                <label className="text-xs font-bold text-gray-500 uppercase">Password</label>
+                                <div className="relative mt-1">
+                                    <input
+                                        type="text"
+                                        name="password"
+                                        value={showStaffPassword ? newStaffData.password : staffPasswordDisplayValue}
+                                        onChange={handleStaffPasswordChange}
+                                        placeholder="Choose password"
+                                        className="w-full px-4 py-2 pr-12 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                                        required
+                                    />
+                                    <button
+                                        type="button"
+                                        className="absolute inset-y-0 right-0 px-4 flex items-center text-gray-400 hover:text-[#009999] transition-colors focus:outline-none"
+                                        onClick={toggleShowStaffPassword}
+                                    >
+                                        {showStaffPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                    </button>
+                                </div>
+                            </div>
+                            <div>
+                                <label className="text-xs font-bold text-gray-500 uppercase">Role</label>
+                                <select
+                                    name="role"
+                                    value={newStaffData.role}
+                                    onChange={handleNewStaffChange}
+                                    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 bg-white outline-none mt-1"
+                                >
+                                    <option value="RECEPTIONIST">Receptionist</option>
+                                    <option value="NURSE">Nurse / Assistant</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div className="flex gap-3 mt-8">
+                            <button
+                                onClick={() => {
+                                    setShowAddStaffModal(false);
+                                    setNewStaffData({ name: '', email: '', phone: '', password: '', role: 'RECEPTIONIST' });
+                                    setStaffPasswordDisplayValue('');
+                                    setShowStaffPassword(false);
+                                }}
+                                className="flex-1 px-4 py-2.5 text-gray-700 font-bold hover:bg-gray-100 rounded-xl transition border border-gray-200"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleCreateStaff}
+                                className="flex-1 px-4 py-2.5 bg-blue-600 text-white font-bold hover:bg-blue-700 rounded-xl shadow-lg transition"
+                            >
+                                Create Account
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

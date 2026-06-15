@@ -1,5 +1,5 @@
 import React from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 
 /**
@@ -7,16 +7,17 @@ import { useAuth } from '../hooks/useAuth';
  * Checks session validity and redirects based on auth status
  * - If loading: Show loading spinner
  * - If not authenticated: Redirect to login
- * - If authenticated: Render children
+ * - If authenticated: Verify profile completion and render children
  */
 const PrivateRoute = ({ children }) => {
     const { isSessionValid, loading, user } = useAuth();
+    const location = useLocation();
 
     // Show loading spinner while verifying session
     if (loading) {
         return (
             <div className="flex justify-center items-center h-screen">
-                <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-primary"></div>
+                <div className="loader"></div>
             </div>
         );
     }
@@ -26,7 +27,36 @@ const PrivateRoute = ({ children }) => {
         return <Navigate to="/login" replace />;
     }
 
-    // Session is valid, render protected content
+    // If doctor, verify all critical profile details are complete
+    if (user.role === 'DOCTOR') {
+        const hasNoKeywords = !user.keywords || user.keywords.length === 0;
+        const hasNoLanguages = !user.languages || user.languages.length === 0;
+        const hasNoFacilities = !user.facilities || Object.keys(user.facilities).length === 0;
+        const hasNoGenderPref = !user.genderPreference;
+        const hasNoDiseaseImages = !user.diseaseImages || user.diseaseImages.length === 0;
+        const hasNoClinicImages = !user.clinicImages || user.clinicImages.length === 0;
+        const hasNoAvailability = !user.weeklyAvailability || user.weeklyAvailability.length === 0;
+
+        const isMissingCritical = hasNoKeywords || 
+                                 hasNoLanguages || 
+                                 hasNoFacilities || 
+                                 hasNoGenderPref || 
+                                 hasNoDiseaseImages || 
+                                 hasNoClinicImages || 
+                                 hasNoAvailability;
+
+        // Redirect to onboarding if critical details are missing
+        if (isMissingCritical && location.pathname !== '/onboarding') {
+            return <Navigate to="/onboarding" replace />;
+        }
+
+        // Redirect to dashboard if details are fully completed but trying to access onboarding
+        if (!isMissingCritical && location.pathname === '/onboarding') {
+            return <Navigate to="/" replace />;
+        }
+    }
+
+    // Session is valid and profile is complete, render protected content
     return children;
 };
 

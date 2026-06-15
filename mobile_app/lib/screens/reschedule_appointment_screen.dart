@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mobile_app/widgets/conic_loader.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import '../services/api_service.dart';
@@ -151,7 +152,7 @@ class _RescheduleAppointmentScreenState
 
               // Slots
               if (_loadingSlots)
-                Center(child: CircularProgressIndicator())
+                Center(child: ConicLoader())
               else if (_availableSlots.isEmpty)
                 Center(child: Text("No slots available", style: GoogleFonts.outfit(color: Colors.grey)))
               else
@@ -202,7 +203,7 @@ class _RescheduleAppointmentScreenState
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))
                     ),
                     child: _isProcessing 
-                        ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) 
+                        ? SizedBox(width: 20, height: 20, child: ConicLoader(color: Colors.white, strokeWidth: 2)) 
                         : Text("Confirm Reschedule", style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
                 )
             ],

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mobile_app/widgets/conic_loader.dart';
 import '../services/api_service.dart';
 
 class RatingScreen extends StatefulWidget {
@@ -83,7 +84,7 @@ class _RatingScreenState extends State<RatingScreen> {
                 onPressed: _submitting ? null : _submit,
                 child:
                     _submitting
-                        ? CircularProgressIndicator(color: Colors.white)
+                        ? ConicLoader(color: Colors.white)
                         : Text('Submit Rating'),
               ),
             ),

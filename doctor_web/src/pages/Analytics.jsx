@@ -1,11 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { getDoctorProfile, getDoctorStats } from '../services/api';
 import { motion } from 'framer-motion';
+import { Navigate } from 'react-router-dom';
+import { useAuth } from '../hooks/useAuth';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { TrendingUp, Users, Calendar, CheckCircle, Star, AlertCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const Analytics = () => {
+    const { user } = useAuth();
+
+    if (user?.role === 'RECEPTIONIST' || user?.role === 'NURSE') {
+        return <Navigate to="/" replace />;
+    }
+
     const [profile, setProfile] = useState(null);
     const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -34,7 +42,7 @@ const Analytics = () => {
     if (loading) {
         return (
             <div className="flex justify-center items-center h-full min-h-[50vh]">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+                <div className="loader"></div>
             </div>
         );
     }

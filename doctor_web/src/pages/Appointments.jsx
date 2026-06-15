@@ -175,7 +175,7 @@ const Appointments = () => {
                         onClick={fetchAppointments}
                         className="flex items-center gap-2 bg-white border border-gray-200 text-gray-700 px-4 py-2 rounded-xl hover:bg-gray-50 transition shadow-sm"
                     >
-                        {loading ? <div className="animate-spin w-4 h-4 border-2 border-primary border-t-transparent rounded-full"></div> : <Filter size={18} className="rotate-180" />}
+                        {loading ? <div className="loader loader-sm"></div> : <Filter size={18} className="rotate-180" />}
                         <span>Refresh</span>
                     </button>
 
@@ -254,7 +254,10 @@ const Appointments = () => {
 
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                 {loading ? (
-                    <div className="p-10 text-center text-gray-500">Loading appointments...</div>
+                    <div className="p-10 flex flex-col items-center justify-center gap-3 text-gray-500">
+                        <div className="loader"></div>
+                        <span>Loading appointments...</span>
+                    </div>
                 ) : filteredAppointments.length > 0 ? (
                     <div className="overflow-x-auto">
                         <table className="w-full text-left border-collapse">

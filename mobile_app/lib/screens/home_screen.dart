@@ -1,13 +1,15 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
+import 'package:mobile_app/widgets/conic_loader.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:animated_text_kit/animated_text_kit.dart';
 import '../services/api_service.dart';
 import '../services/socket_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'find_doctor_screen.dart';
 import 'doctor_search_results_screen.dart';
+import 'doctor_details_screen.dart';
 import '../widgets/rating_modal.dart';
 import '../services/db_helper.dart';
 import 'package:intl/intl.dart';
@@ -35,10 +37,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Map<String, dynamic>? _userProfile;
   bool _isLoading = true;
   List<Map<String, dynamic>> _todayMedicines = [];
+  List<dynamic> _topDoctors = [];
+  bool _isLoadingDoctors = true;
   bool _welcomeCouponShown = false;
 
   // Banner State
-  final PageController _pageController = PageController();
+  final PageController _pageController = PageController(initialPage: 1000);
   int _currentPage = 0;
   Timer? _timer;
 
@@ -66,6 +70,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       setState(() {});
     });
     _fetchProfile();
+    _fetchTopDoctors();
     _startAutoSlide();
 
     _socketSubscription = SocketService().eventStream.listen((event) {
@@ -101,15 +106,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   void _startAutoSlide() {
     _timer = Timer.periodic(const Duration(seconds: 4), (Timer timer) {
-      if (_currentPage < 3) {
-        _currentPage++;
-      } else {
-        _currentPage = 0;
-      }
-
       if (_pageController.hasClients) {
-        _pageController.animateToPage(
-          _currentPage,
+        _pageController.nextPage(
           duration: const Duration(milliseconds: 500),
           curve: Curves.easeInOut,
         );
@@ -140,6 +138,30 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       }
     }
     await _fetchTodayMedicines();
+  }
+
+  Future<void> _fetchTopDoctors() async {
+    try {
+      final doctors = await _apiService.getDoctors();
+      // Sort by rating descending
+      doctors.sort((a, b) {
+        final ratingA = (a['ratings']?['averageRating'] ?? 0).toDouble();
+        final ratingB = (b['ratings']?['averageRating'] ?? 0).toDouble();
+        return ratingB.compareTo(ratingA);
+      });
+      if (mounted) {
+        setState(() {
+          _topDoctors = doctors.take(10).toList();
+          _isLoadingDoctors = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoadingDoctors = false;
+        });
+      }
+    }
   }
 
   Future<void> _fetchTodayMedicines() async {
@@ -204,8 +226,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   void _checkWelcomeCoupon() async {
-    // Only show once per session
+    // Only show once per session to avoid repeated checks if not needed
     if (_welcomeCouponShown) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    final isDismissed = prefs.getBool('welcome_coupon_dismissed') ?? false;
+    if (isDismissed) {
+      _welcomeCouponShown = true;
+      return;
+    }
 
     final res = await _apiService.getWelcomeCoupon();
     if (res != null && res['coupon'] != null) {
@@ -244,7 +273,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop(ctx),
+                onPressed: () async {
+                  final prefs = await SharedPreferences.getInstance();
+                  await prefs.setBool('welcome_coupon_dismissed', true);
+                  if (mounted) Navigator.pop(ctx);
+                },
                 child: Text("Got it!"),
               ),
             ],
@@ -270,7 +303,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       body: SafeArea(
         child:
             _isLoading
-                ? const Center(child: CircularProgressIndicator())
+                ? const Center(child: ConicLoader())
                 : RefreshIndicator(
                   onRefresh: _fetchProfile,
                   child: SingleChildScrollView(
@@ -452,36 +485,154 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
                         // 3. Ads Banner Slider
                         SizedBox(
-                          height: 160,
-                          child: PageView(
+                          height: 186,
+                          child: PageView.builder(
+                            clipBehavior: Clip.none,
                             controller: _pageController,
                             onPageChanged: (int page) {
                               setState(() {
-                                _currentPage = page;
+                                _currentPage = page % 4;
                               });
                             },
-                            children: [
-                              _buildBanner(
-                                Colors.blue.shade400,
-                                "Full Body Checkup",
-                                "Get 50% Off",
-                              ),
-                              _buildBanner(
-                                Colors.purple.shade400,
-                                "Online Consultation",
-                                "Connect instantly",
-                              ),
-                              _buildBanner(
-                                Colors.orange.shade400,
-                                "Medicine Delivery",
-                                "Flat 20% cashback",
-                              ),
-                              _buildBanner(
-                                Colors.teal.shade400,
-                                "Blood Donation",
-                                "Save a life today",
-                              ),
-                            ],
+                             itemBuilder: (context, index) {
+                              final int realIndex = index % 4;
+                              if (realIndex == 0) {
+                                final hasTopDoc = _topDoctors.isNotEmpty;
+                                final topDoc = hasTopDoc ? _topDoctors[0] : null;
+                                return GestureDetector(
+                                  onTap: () {
+                                    if (hasTopDoc) {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) => DoctorDetailsScreen(doctor: topDoc),
+                                        ),
+                                      );
+                                    } else {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) => FindDoctorScreen(),
+                                        ),
+                                      );
+                                    }
+                                  },
+                                  child: _buildBanner(
+                                    const LinearGradient(
+                                      colors: [Color(0xFF2563EB), Color(0xFF4F46E5)],
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                    ),
+                                    hasTopDoc
+                                        ? "Consult ${topDoc['name']}"
+                                        : "Top Rated Doctors",
+                                    hasTopDoc
+                                        ? "${topDoc['specialization']}"
+                                        : "Consult Specialists",
+                                    hasTopDoc
+                                        ? CircleAvatar(
+                                            radius: 36,
+                                            backgroundColor: Colors.white24,
+                                            backgroundImage: _getDoctorImage(topDoc),
+                                            child: _getDoctorImage(topDoc) == null
+                                                ? Text(
+                                                    (topDoc['name'] ?? 'D')[0],
+                                                    style: GoogleFonts.outfit(
+                                                      fontSize: 24,
+                                                      fontWeight: FontWeight.bold,
+                                                      color: Colors.white,
+                                                    ),
+                                                  )
+                                                : null,
+                                          )
+                                        : const Icon(
+                                            Icons.star_rounded,
+                                            color: Colors.white,
+                                            size: 38,
+                                          ),
+                                    const Color(0xFF2563EB),
+                                  ),
+                                );
+                              } else if (realIndex == 1) {
+                                return GestureDetector(
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => FindDoctorScreen(),
+                                      ),
+                                    );
+                                  },
+                                  child: _buildBanner(
+                                    const LinearGradient(
+                                      colors: [Color(0xFF7C3AED), Color(0xFFEC4899)],
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                    ),
+                                    "Online Consultation",
+                                    "Connect instantly",
+                                    const Icon(
+                                      Icons.support_agent_rounded,
+                                      color: Colors.white,
+                                      size: 38,
+                                    ),
+                                    const Color(0xFF7C3AED),
+                                  ),
+                                );
+                              } else if (realIndex == 2) {
+                                return GestureDetector(
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => const MedicineRemindersScreen(),
+                                      ),
+                                    );
+                                  },
+                                  child: _buildBanner(
+                                    const LinearGradient(
+                                      colors: [Color(0xFFF97316), Color(0xFFEF4444)],
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                    ),
+                                    "Medicine Reminders",
+                                    "Track Daily Doses",
+                                    const Icon(
+                                      Icons.medication_rounded,
+                                      color: Colors.white,
+                                      size: 38,
+                                    ),
+                                    const Color(0xFFF97316),
+                                  ),
+                                );
+                              } else {
+                                return GestureDetector(
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => const BloodFinderScreen(),
+                                      ),
+                                    );
+                                  },
+                                  child: _buildBanner(
+                                    const LinearGradient(
+                                      colors: [Color(0xFFDC2626), Color(0xFFF87171)],
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                    ),
+                                    "Blood Finder",
+                                    "Find Donors Near You",
+                                    const Icon(
+                                      Icons.opacity_rounded,
+                                      color: Colors.white,
+                                      size: 38,
+                                    ),
+                                    const Color(0xFFDC2626),
+                                  ),
+                                );
+                              }
+                            },
                           ),
                         ).animate().fadeIn(delay: 200.ms).scale(),
 
@@ -511,7 +662,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             _buildFeatureIcon(
-                              icon: Icons.medical_services_outlined,
+                              icon: Icons.medical_services_rounded,
                               label: 'Find Doctor',
                               color: Colors.blue,
                               onTap:
@@ -525,7 +676,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                             ),
 
                             _buildFeatureIcon(
-                              icon: Icons.bloodtype_outlined,
+                              icon: Icons.bloodtype_rounded,
                               label: 'Blood Finder',
                               color: Colors.red,
                               onTap:
@@ -538,7 +689,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                               delay: 500,
                             ),
                             _buildFeatureIcon(
-                              icon: Icons.shield_outlined,
+                              icon: Icons.shield_rounded,
                               label: 'Insurance',
                               color: Colors.orange,
                               onTap:
@@ -551,7 +702,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                               delay: 600,
                             ),
                             _buildFeatureIcon(
-                              icon: Icons.qr_code_scanner,
+                              icon: Icons.qr_code_scanner_rounded,
                               label: 'Scan QR',
                               color: Colors.purple,
                               onTap:
@@ -604,6 +755,51 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                             : Column(
                                 children: _todayMedicines.map((med) => _buildTodayMedicineCard(med)).toList(),
                               ),
+
+                        const SizedBox(height: 32),
+
+                        // 6. Top Rated Doctors
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Top Rated Doctors',
+                              style: GoogleFonts.outfit(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black87,
+                              ),
+                            ),
+                            TextButton(
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => FindDoctorScreen(),
+                                  ),
+                                );
+                              },
+                              child: Text('View All', style: GoogleFonts.outfit(color: Colors.blue)),
+                            )
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        _isLoadingDoctors
+                            ? const Center(child: ConicLoader())
+                            : _topDoctors.isEmpty
+                                ? Text("No doctors found.", style: GoogleFonts.outfit(color: Colors.grey))
+                                : SizedBox(
+                                    height: 220,
+                                    child: ListView.builder(
+                                      scrollDirection: Axis.horizontal,
+                                      physics: const BouncingScrollPhysics(),
+                                      itemCount: _topDoctors.length,
+                                      itemBuilder: (context, index) {
+                                        return _buildDoctorCard(_topDoctors[index]);
+                                      },
+                                    ),
+                                  ),
+                        const SizedBox(height: 40),
                       ],
                     ),
                   ),
@@ -633,44 +829,142 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         ),
       ],
     );
-  }
-
-  Widget _buildBanner(Color color, String title, String subtitle) {
+  }  Widget _buildBanner(LinearGradient gradient, String title, String subtitle, Widget rightWidget, Color shadowColor) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 4),
+      margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
       decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(
-            title,
-            style: GoogleFonts.outfit(
-              color: Colors.white,
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Text(
-              subtitle,
-              style: GoogleFonts.outfit(
-                color: Colors.white,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
+        gradient: gradient,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: shadowColor.withValues(alpha: 0.25),
+            blurRadius: 15,
+            offset: const Offset(0, 6),
           ),
         ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: Stack(
+          children: [
+            // Decorative background circle 1
+            Positioned(
+              right: -30,
+              top: -30,
+              child: Container(
+                width: 150,
+                height: 150,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withValues(alpha: 0.08),
+                ),
+              ),
+            ),
+            // Decorative background circle 2
+            Positioned(
+              right: 60,
+              bottom: -50,
+              child: Container(
+                width: 100,
+                height: 100,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withValues(alpha: 0.05),
+                ),
+              ),
+            ),
+            
+            // Content
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
+              child: Row(
+                children: [
+                  Expanded(
+                    flex: 6,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          title,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.outfit(
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            height: 1.2,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(30),
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.3),
+                              width: 1,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  subtitle,
+                                  style: GoogleFonts.outfit(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 13,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                  maxLines: 1,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              const Icon(
+                                Icons.arrow_forward_rounded,
+                                color: Colors.white,
+                                size: 14,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  // Glowing Illustration Icon
+                  Expanded(
+                    flex: 4,
+                    child: Center(
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.white.withValues(alpha: 0.15),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.2),
+                            width: 1.5,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.05),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: rightWidget,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -700,21 +994,39 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           child: Column(
             children: [
               Container(
-                width: 64,
-                height: 64,
+                width: 68,
+                height: 68,
                 decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.1),
+                  gradient: LinearGradient(
+                    colors: [
+                      color.withValues(alpha: 0.12),
+                      color.withValues(alpha: 0.04),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
                   borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: color.withValues(alpha: 0.25),
+                    width: 1.5,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: color.withValues(alpha: 0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                 ),
-                child: Icon(icon, color: color, size: 30),
+                child: Icon(icon, color: color, size: 32),
               ),
               const SizedBox(height: 8),
               Text(
                 label,
                 style: GoogleFonts.outfit(
                   fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.grey,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF475569),
                 ),
               ),
             ],
@@ -797,5 +1109,123 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         ],
       ),
     );
+  }
+
+  Widget _buildDoctorCard(dynamic doctor) {
+    return Container(
+      width: 160,
+      margin: const EdgeInsets.only(right: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => DoctorDetailsScreen(doctor: doctor),
+            ),
+          );
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircleAvatar(
+                radius: 36,
+                backgroundColor: Colors.blue.shade50,
+                backgroundImage: _getDoctorImage(doctor),
+                child: _getDoctorImage(doctor) == null
+                    ? Text(
+                        (doctor['name'] ?? 'D')[0],
+                        style: GoogleFonts.outfit(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blue,
+                        ),
+                      )
+                    : null,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                doctor['name'] ?? '',
+                style: GoogleFonts.outfit(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                doctor['specialization'] ?? '',
+                style: GoogleFonts.outfit(
+                  fontSize: 13,
+                  color: Colors.blue.shade600,
+                  fontWeight: FontWeight.w500,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.star, size: 14, color: Colors.amber),
+                  const SizedBox(width: 4),
+                  Text(
+                    "${doctor['ratings']?['averageRating']?.toStringAsFixed(1) ?? '0.0'}",
+                    style: GoogleFonts.outfit(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  ImageProvider? _getDoctorImage(dynamic doctor) {
+    String? photoData = doctor['profileImage'] ?? doctor['doctorPhoto'];
+
+    if (photoData != null && photoData.isNotEmpty) {
+      if (photoData.startsWith('http')) {
+        return NetworkImage(photoData);
+      }
+
+      if (photoData.startsWith('uploads/') || photoData.startsWith('/uploads/')) {
+        final cleanPath = photoData.replaceAll('\\', '/').replaceFirst(RegExp(r'^/+'), '');
+        return NetworkImage('${ApiService.baseUrl.replaceAll('/api', '')}/$cleanPath');
+      }
+      
+      try {
+        String base64String = photoData;
+        if (base64String.contains(',')) {
+          base64String = base64String.split(',').last;
+        }
+        return MemoryImage(base64Decode(base64String));
+      } catch (e) {
+        debugPrint('Error decoding base64 image: $e');
+        return null;
+      }
+    }
+    return null;
   }
 }

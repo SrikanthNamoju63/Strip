@@ -101,7 +101,7 @@ const Header = ({ toggleSidebar }) => {
                                         <div className="max-h-[400px] overflow-y-auto">
                                             {loadingNotifications ? (
                                                 <div className="flex justify-center items-center py-8">
-                                                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                                                    <div className="loader"></div>
                                                 </div>
                                             ) : notifications.length > 0 ? (
                                                 <div className="divide-y divide-gray-50">

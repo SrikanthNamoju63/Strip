@@ -620,6 +620,9 @@ exports.handleWebhook = async (req, res) => {
         res.json({ status: 'ok' });
     } catch (error) {
         console.error('Webhook error:', error);
+        if (error.message === 'Invalid webhook signature' || error.message.includes('signature')) {
+            return res.status(400).json({ message: error.message });
+        }
         res.status(500).json({ message: 'Webhook failed' });
     }
 };

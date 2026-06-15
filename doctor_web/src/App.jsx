@@ -17,6 +17,7 @@ import HealthAnalysis from './pages/HealthAnalysis';
 import Notifications from './pages/Notifications';
 import Analytics from './pages/Analytics';
 import ErrorBoundary from './components/ErrorBoundary';
+import Onboarding from './pages/Onboarding';
 
 import { SocketProvider } from './context/SocketContext';
 import { AuthProvider } from './context/AuthContext'; // Ensure this wraps if not already in main.jsx.
@@ -36,6 +37,16 @@ function App() {
             <Routes>
               <Route path="/login" element={<Login />} />
               <Route path="/forgot-password" element={<Login />} />
+
+              {/* Onboarding Flow Route */}
+              <Route 
+                path="/onboarding" 
+                element={
+                  <PrivateRoute>
+                    <Onboarding />
+                  </PrivateRoute>
+                } 
+              />
 
               {/* Protected Routes with Layout */}
               <Route

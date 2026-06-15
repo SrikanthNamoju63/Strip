@@ -3,10 +3,18 @@ import { Card, Table, Tag, Statistic, Row, Col, Typography, Spin, Alert, Descrip
 import { DollarOutlined, ClockCircleOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import { getDoctorSettlements } from '../services/api';
 import useRealTime from '../hooks/useRealTime';
+import { Navigate } from 'react-router-dom';
+import { useAuth } from '../hooks/useAuth';
 
 const { Title } = Typography;
 
 const Earnings = () => {
+    const { user } = useAuth();
+
+    if (user?.role === 'RECEPTIONIST' || user?.role === 'NURSE') {
+        return <Navigate to="/" replace />;
+    }
+
     const [loading, setLoading] = useState(true);
     const [stats, setStats] = useState({
         totalSettled: 0,

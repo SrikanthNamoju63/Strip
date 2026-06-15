@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mobile_app/widgets/conic_loader.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../services/api_service.dart';
@@ -244,7 +245,7 @@ class _RatingModalState extends State<RatingModal> {
                               ? const SizedBox(
                                 height: 20,
                                 width: 20,
-                                child: CircularProgressIndicator(
+                                child: ConicLoader(
                                   color: Colors.white,
                                   strokeWidth: 2,
                                 ),

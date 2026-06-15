@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mobile_app/widgets/conic_loader.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../services/api_service.dart';
 import '../widgets/empty_state_widget.dart';
@@ -48,7 +49,7 @@ class _PrescriptionsScreenState extends State<PrescriptionsScreen> {
       appBar: AppBar(title: const Text('My Prescriptions'), elevation: 0),
       body:
           isLoading
-              ? const Center(child: CircularProgressIndicator())
+              ? const Center(child: ConicLoader())
               : prescriptions.isEmpty
               ? EmptyStateWidget(
                 title: 'No Prescriptions',

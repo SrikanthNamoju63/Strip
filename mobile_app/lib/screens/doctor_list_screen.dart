@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mobile_app/widgets/conic_loader.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/api_service.dart';
 import 'booking_screen.dart';
@@ -39,7 +40,7 @@ class _DoctorListScreenState extends State<DoctorListScreen> {
         elevation: 0,
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: ConicLoader())
           : ListView.builder(
               padding: const EdgeInsets.all(16),
               itemCount: _doctors.length,

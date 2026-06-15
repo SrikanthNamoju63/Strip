@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:mobile_app/widgets/conic_loader.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:intl/intl.dart';
@@ -259,8 +260,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                         if (selectedDate != null) {
                           updateData['dob'] = selectedDate!.toIso8601String();
-                          updateData['age'] =
-                              DateTime.now().year - selectedDate!.year;
+                          final now = DateTime.now();
+                          int calculatedAge = now.year - selectedDate!.year;
+                          if (now.month < selectedDate!.month ||
+                              (now.month == selectedDate!.month && now.day < selectedDate!.day)) {
+                            calculatedAge--;
+                          }
+                          updateData['age'] = calculatedAge;
                         }
 
                         await _apiService.updateUserProfile(updateData);
@@ -334,7 +340,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
       body:
           _isLoading
-              ? const Center(child: CircularProgressIndicator())
+              ? const Center(child: ConicLoader())
               : RefreshIndicator(
                 onRefresh: _fetchData,
                 child: SingleChildScrollView(
@@ -843,12 +849,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     const Divider(),
                     _buildTicketRow(
                       "Consultation Fee",
-                      "₹${appt['paymentStatus'] == 'COMPLETED' ? (appt['consultationFee'] ?? 0) : (appt['fee'] ?? 0)}", // Show actual fee logic
+                      "₹${((appt['paymentStatus'] == 'COMPLETED' ? (appt['consultationFee'] ?? 0) : (appt['fee'] ?? 0)) as num).toStringAsFixed(2)}", // Show actual fee logic
                       false,
                     ),
                     _buildTicketRow(
                       "Total Paid",
-                      "₹${appt['paymentId'] is Map ? (appt['paymentId']['totalAmount'] ?? '-') : '-'}",
+                      "₹${appt['paymentId'] is Map ? (((appt['paymentId']['totalAmount'] ?? 0) as num).toStringAsFixed(2)) : '-'}",
                       false,
                     ),
                     _buildTicketRow(
@@ -885,7 +891,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       _buildTicketRow(
                         "Refund Amount",
                         appt['paymentId'] is Map
-                            ? "₹${appt['paymentId']['refundAmount'] ?? appt['paymentId']['totalAmount'] ?? 0}"
+                            ? "₹${((appt['paymentId']['refundAmount'] ?? appt['paymentId']['totalAmount'] ?? 0) as num).toStringAsFixed(2)}"
                             : "-",
                         false,
                       ),

@@ -73,7 +73,7 @@ const Support = () => {
                 </div>
                 <div className="overflow-y-auto flex-1 p-3 space-y-2 custom-scrollbar">
                     {loading ? (
-                        <div className="flex justify-center p-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div></div>
+                        <div className="flex justify-center p-8"><div className="loader"></div></div>
                     ) : tickets.length === 0 ? (
                         <div className="text-center p-10 text-slate-400">
                             <div className="bg-slate-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-3">

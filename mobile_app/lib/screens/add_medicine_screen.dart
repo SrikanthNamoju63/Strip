@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mobile_app/widgets/conic_loader.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'dart:convert';
@@ -26,13 +27,13 @@ class _AddMedicineScreenState extends State<AddMedicineScreen> {
     'With Food'
   ];
 
-  List<TimeOfDay> _reminderTimes = [TimeOfDay.now()];
+  final List<TimeOfDay> _reminderTimes = [TimeOfDay.now()];
 
   String _frequency = 'Every Day';
   final List<String> _frequencyOptions = ['Every Day', 'Specific Days'];
 
   // 0=Mon, 1=Tue... 6=Sun
-  List<bool> _selectedDays = List.filled(7, false);
+  final List<bool> _selectedDays = List.filled(7, false);
 
   String _reminderOffset = 'Exact time';
   final List<String> _offsetOptions = [
@@ -440,7 +441,7 @@ class _AddMedicineScreenState extends State<AddMedicineScreen> {
                     elevation: 0,
                   ),
                   child: _isSaving
-                      ? const CircularProgressIndicator(color: Colors.white)
+                      ? const ConicLoader(color: Colors.white)
                       : Text('Save Medicine', style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold)),
                 ),
               ),

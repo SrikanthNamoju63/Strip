@@ -14,7 +14,7 @@
     "test-db": "node scripts/test_db.js",
     "test-endpoints": "node scripts/test_endpoints.js",
     "verify-finance": "node scripts/verify_finance.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "jest --detectOpenHandles --forceExit"
   },
   "keywords": [
     "healthcare",
@@ -38,16 +38,20 @@
     "mongo-sanitize": "^1.1.0",
     "mongoose": "^9.1.5",
     "multer": "^2.0.2",
+    "mysql2": "^3.22.5",
     "node-cron": "^4.2.1",
     "nodemailer": "^7.0.13",
     "rate-limit-redis": "^4.1.4",
     "razorpay": "^2.9.6",
     "redis": "^4.6.11",
     "sendgrid": "^5.2.3",
+    "sequelize": "^6.37.8",
     "socket.io": "^4.8.3",
     "xss": "^1.0.14"
   },
   "devDependencies": {
-    "nodemon": "^3.1.11"
+    "jest": "^30.4.2",
+    "nodemon": "^3.1.11",
+    "supertest": "^7.2.2"
   }
 }

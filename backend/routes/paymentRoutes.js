@@ -3,13 +3,15 @@ const router = express.Router();
 const { protect, authorize } = require('../middleware/authMiddleware');
 const paymentController = require('../controllers/finance/paymentController');
 
+// Public routes (no authentication required)
+router.post('/webhook', paymentController.handleWebhook);
+
 // Private routes (requires authentication)
 router.use(protect);
 
 // Patient routes
 router.post('/initiate', authorize('USER', 'PATIENT', 'DOCTOR', 'ADMIN', 'SUPER_ADMIN'), paymentController.initiatePayment);
 router.post('/verify', paymentController.verifyPayment);
-router.post('/webhook', paymentController.handleWebhook); // Public, verify signature inside
 router.post('/doctor/onboard', authorize('DOCTOR', 'ADMIN', 'SUPER_ADMIN'), paymentController.onboardDoctor);
 
 router.get('/history', paymentController.getPaymentHistory);

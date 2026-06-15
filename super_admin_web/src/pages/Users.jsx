@@ -58,7 +58,17 @@ const Users = () => {
                     </div>
                     <div>
                         <div className="font-semibold text-slate-800">{user.name}</div>
-                        <div className="text-xs text-slate-500">{user.role || 'Patient'}</div>
+                        <div className="text-xs text-slate-500 flex items-center gap-1.5 mt-0.5">
+                            {user.userNumber && (
+                                <>
+                                    <span className="px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded font-mono font-semibold text-[10px]">
+                                        {user.userNumber}
+                                    </span>
+                                    <span className="text-slate-300">•</span>
+                                </>
+                            )}
+                            <span>{user.role || 'Patient'}</span>
+                        </div>
                     </div>
                 </div>
             )
@@ -98,7 +108,8 @@ const Users = () => {
     const filteredUsers = users.filter(u =>
         u.name?.toLowerCase().includes(search.toLowerCase()) ||
         u.email?.toLowerCase().includes(search.toLowerCase()) ||
-        u.phone?.includes(search)
+        u.phone?.includes(search) ||
+        u.userNumber?.toLowerCase().includes(search.toLowerCase())
     );
 
     return (

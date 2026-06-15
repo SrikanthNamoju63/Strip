@@ -71,7 +71,8 @@ const DoctorQRCode = ({ profile }) => {
                 pdf.setFontSize(26);
                 pdf.setFont("helvetica", "bold");
                 pdf.setTextColor(40, 40, 40);
-                pdf.text(`Dr. ${profile?.name || ''}`, pageWidth / 2, yPos, { align: 'center' });
+                const displayNameForPdf = profile?.name ? (profile.name.toLowerCase().startsWith('dr') ? profile.name : `Dr. ${profile.name}`) : '';
+                pdf.text(displayNameForPdf, pageWidth / 2, yPos, { align: 'center' });
                 
                 yPos += 8;
 
@@ -101,7 +102,7 @@ const DoctorQRCode = ({ profile }) => {
                 pdf.setFontSize(14);
                 pdf.setFont("helvetica", "bold");
                 pdf.setTextColor(70, 70, 70);
-                pdf.text("Scan using the Dr Strip App", pageWidth / 2, yPos, { align: 'center' });
+                pdf.text("Scan with Dr Strip App to Book Instantly", pageWidth / 2, yPos, { align: 'center' });
 
                 // Download
                 pdf.save(`DrStrip-${profile?.name?.replace(/\s+/g, '-') || 'QR'}.pdf`);
@@ -137,7 +138,8 @@ const DoctorQRCode = ({ profile }) => {
             >
                 <QRCodeCanvas 
                     value={qrData}
-                    size={200}
+                    size={1200}
+                    style={{ width: '200px', height: '200px' }}
                     bgColor={"#ffffff"}
                     fgColor={"#000000"} 
                     level={"H"}
@@ -146,14 +148,16 @@ const DoctorQRCode = ({ profile }) => {
                         src: STETHOSCOPE_SVG_B64,
                         x: undefined,
                         y: undefined,
-                        height: 48,
-                        width: 48,
+                        height: 288,
+                        width: 288,
                         excavate: true,
                     }}
                 />
             </div>
 
-            <h4 className="font-bold text-gray-900 mt-4">Dr. {profile?.name}</h4>
+            <h4 className="font-bold text-gray-900 mt-4">
+                {profile?.name && (profile.name.toLowerCase().startsWith('dr') ? profile.name : `Dr. ${profile.name}`)}
+            </h4>
             <p className="text-sm text-gray-500 mb-6">{profile?.specialization || 'Healthcare Professional'}</p>
 
             <div className="flex gap-3 w-full max-w-xs">

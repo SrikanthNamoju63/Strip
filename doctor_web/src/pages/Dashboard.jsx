@@ -74,7 +74,7 @@ const Dashboard = () => {
 
     if (loading) return (
         <div className="flex justify-center items-center h-full min-h-[50vh]">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+            <div className="loader"></div>
         </div>
     );
 
@@ -204,7 +204,9 @@ const Dashboard = () => {
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Overview</h1>
-                    <p className="text-gray-500 mt-1">Welcome back, Dr. {profile?.name}</p>
+                    <p className="text-gray-500 mt-1">
+                        Welcome back, {profile?.name && (profile.name.toLowerCase().startsWith('dr') ? profile.name : `Dr. ${profile.name}`)}
+                    </p>
                 </div>
                 <div className="flex items-center gap-3">
                     <span className="px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-600 shadow-sm hidden md:block">

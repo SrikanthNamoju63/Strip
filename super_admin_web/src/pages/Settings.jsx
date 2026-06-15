@@ -134,7 +134,7 @@ const Settings = () => {
 
             {loading ? (
                 <div className="flex items-center justify-center py-20">
-                    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
+                    <div className="loader"></div>
                 </div>
             ) : (
                 <form onSubmit={handleSave} className="space-y-6">

@@ -246,5 +246,21 @@ export const markNotificationAsRead = async (notificationId) => {
     return res.data;
 };
 
+// ===== STAFF MANAGEMENT =====
+export const getDoctorStaff = async () => {
+    const res = await api.get('/doctors/me/staff');
+    return res.data;
+};
+
+export const addDoctorStaff = async (staffData) => {
+    const res = await api.post('/doctors/me/staff', staffData);
+    return res.data;
+};
+
+export const deleteDoctorStaff = async (staffId) => {
+    const res = await api.delete(`/doctors/me/staff/${staffId}`);
+    return res.data;
+};
+
 export default api;
 

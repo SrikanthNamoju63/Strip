@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mobile_app/widgets/conic_loader.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/api_service.dart';
 import 'donor_registration_screen.dart';
@@ -88,7 +89,7 @@ class _BloodFinderScreenState extends State<BloodFinderScreen> {
            ),
            Expanded(
              child: _isLoading 
-                ? const Center(child: CircularProgressIndicator()) 
+                ? const Center(child: ConicLoader()) 
                 : _donors.isEmpty 
                   ? Center(
                       child: Column(

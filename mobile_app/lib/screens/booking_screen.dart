@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mobile_app/widgets/conic_loader.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import '../services/api_service.dart';
@@ -89,7 +90,7 @@ class _BookingScreenState extends State<BookingScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      '₹${amount.toStringAsFixed(0)}',
+                      '₹${amount.toStringAsFixed(2)}',
                       style: GoogleFonts.outfit(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
@@ -161,8 +162,9 @@ class _BookingScreenState extends State<BookingScreen> {
                                 // In real app, Gateway SDK handles this. Here we manually trigger verify.
                                 final verifySuccess = await _apiService
                                     .verifyPayment(
-                                      paymentData['data']['paymentId'],
-                                      'TXN_${DateTime.now().millisecondsSinceEpoch}',
+                                      paymentData['data']['paymentId'] ?? '',
+                                      paymentData['data']['orderId'] ?? 'TXN_${DateTime.now().millisecondsSinceEpoch}',
+                                      'MOCK_SIGNATURE',
                                     );
 
                                 if (verifySuccess != null) {
@@ -424,7 +426,7 @@ class _BookingScreenState extends State<BookingScreen> {
                 ),
                 child:
                     _isLoading
-                        ? const CircularProgressIndicator(color: Colors.white)
+                        ? const ConicLoader(color: Colors.white)
                         : Text(
                           'Confirm Booking',
                           style: GoogleFonts.outfit(

@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useAdminAuth } from '../hooks/useAdminAuth';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
-import { Lock, User, Loader2, Eye, EyeOff, ShieldCheck, Server, Activity } from 'lucide-react';
+import { Lock, User, Eye, EyeOff, ShieldCheck, Server, Activity } from 'lucide-react';
 // eslint-disable-next-line no-unused-vars
 import { motion } from 'framer-motion';
 
@@ -15,8 +15,106 @@ const Login = () => {
     const navigate = useNavigate();
     const [isLoading, setIsLoading] = useState(false);
 
+    // Custom states/refs for the password "peek-on-type" behavior
+    const [displayPassword, setDisplayPassword] = useState('');
+    const [cursorPosition, setCursorPosition] = useState(null);
+    const passwordInputRef = useRef(null);
+    const maskTimeoutRef = useRef(null);
+
+    // Clean up timeout on unmount
+    useEffect(() => {
+        return () => {
+            if (maskTimeoutRef.current) {
+                clearTimeout(maskTimeoutRef.current);
+            }
+        };
+    }, []);
+
+    // Flawless cursor restoration after React renders the displayPassword string
+    useEffect(() => {
+        if (cursorPosition !== null && passwordInputRef.current) {
+            passwordInputRef.current.setSelectionRange(cursorPosition, cursorPosition);
+            setCursorPosition(null);
+        }
+    }, [displayPassword, cursorPosition]);
+
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
+    };
+
+    // Premium password change handler that computes changes, updates actual password state,
+    // and masks everything except the last typed letter temporarily.
+    const handlePasswordChange = (e) => {
+        const input = e.target;
+        const newVal = input.value;
+        const selectionStart = input.selectionStart;
+        const currentPassword = formData.password;
+
+        let newPassword = currentPassword;
+
+        if (showPassword) {
+            newPassword = newVal;
+            setFormData(prev => ({ ...prev, password: newVal }));
+            setDisplayPassword(newVal);
+            return;
+        }
+
+        if (newVal.length > displayPassword.length) {
+            // Character addition (typed or pasted)
+            const addedLen = newVal.length - displayPassword.length;
+            const addedIndex = selectionStart - addedLen;
+            const addedText = newVal.substring(addedIndex, selectionStart);
+            newPassword = currentPassword.slice(0, addedIndex) + addedText + currentPassword.slice(addedIndex);
+        } else if (newVal.length < displayPassword.length) {
+            // Character deletion (backspace or delete)
+            const deletedLen = displayPassword.length - newVal.length;
+            const deletedIndex = selectionStart;
+            newPassword = currentPassword.slice(0, deletedIndex) + currentPassword.slice(deletedIndex + deletedLen);
+        } else {
+            // Replacement (same length, e.g. text selected and replaced)
+            const changedIndex = selectionStart - 1;
+            if (changedIndex >= 0) {
+                const char = newVal[changedIndex];
+                if (char !== '•') {
+                    newPassword = currentPassword.slice(0, changedIndex) + char + currentPassword.slice(changedIndex + 1);
+                }
+            }
+        }
+
+        // Sync with actual form data
+        setFormData(prev => ({ ...prev, password: newPassword }));
+
+        // Track cursor position to prevent jumps
+        setCursorPosition(selectionStart);
+
+        if (newPassword.length === 0) {
+            setDisplayPassword('');
+            return;
+        }
+
+        // Generate display value where only the newly added character is visible
+        const masked = '•'.repeat(Math.max(0, newPassword.length - 1)) + newPassword.charAt(newPassword.length - 1);
+        setDisplayPassword(masked);
+
+        // Reset & start a 800ms timer to mask the last letter as well
+        if (maskTimeoutRef.current) {
+            clearTimeout(maskTimeoutRef.current);
+        }
+
+        maskTimeoutRef.current = setTimeout(() => {
+            setDisplayPassword('•'.repeat(newPassword.length));
+        }, 800);
+    };
+
+    // Custom toggle to transition between masked and plain text
+    const toggleShowPassword = () => {
+        const nextShow = !showPassword;
+        setShowPassword(nextShow);
+        if (nextShow) {
+            setDisplayPassword(formData.password);
+        } else {
+            setDisplayPassword('•'.repeat(formData.password.length));
+        }
     };
 
     const handleSubmit = async (e) => {
@@ -41,7 +139,7 @@ const Login = () => {
                 initial={{ opacity: 0, y: 15 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, ease: "easeOut" }}
-                className="w-full max-w-[420px] bg-white p-[40px] rounded-[16px] shadow-[0_4px_24px_rgba(0,0,0,0.04)] border border-gray-100"
+                className="w-full max-w-[480px] bg-white p-[40px] rounded-[16px] shadow-[0_4px_24px_rgba(0,0,0,0.04)] border border-gray-100"
             >
                 {/* Header Section */}
                 <div className="text-center mb-10">
@@ -90,16 +188,18 @@ const Login = () => {
                                 <input
                                     id="password"
                                     name="password"
-                                    type={showPassword ? "text" : "password"}
+                                    type="text"
+                                    ref={passwordInputRef}
                                     required
+                                    autoComplete="current-password"
                                     className="block w-full pl-10 pr-10 py-3 bg-white border border-gray-200 rounded-lg text-[14px] text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium"
                                     placeholder="Enter secure access key"
-                                    value={formData.password}
-                                    onChange={handleChange}
+                                    value={showPassword ? formData.password : displayPassword}
+                                    onChange={handlePasswordChange}
                                 />
                                 <button
                                     type="button"
-                                    onClick={() => setShowPassword(!showPassword)}
+                                    onClick={toggleShowPassword}
                                     className="absolute inset-y-0 right-0 pr-3 flex items-center outline-none"
                                 >
                                     {showPassword ? (
@@ -118,7 +218,7 @@ const Login = () => {
                         className="w-full flex justify-center items-center py-3 px-4 border border-transparent text-[14px] font-semibold rounded-lg text-white bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-600 transition-all shadow-[0_2px_10px_rgba(37,99,235,0.2)] hover:shadow-[0_4px_14px_rgba(37,99,235,0.3)] disabled:opacity-75 disabled:cursor-wait"
                     >
                         {isLoading ? (
-                            <Loader2 className="animate-spin h-5 w-5" />
+                            <div className="loader loader-sm loader-white"></div>
                         ) : (
                             "Authenticate"
                         )}

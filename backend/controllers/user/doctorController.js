@@ -8,6 +8,8 @@ const auditService = require('../../services/misc/auditService');
 // @access  Public (or Private if linked to User auth)
 exports.registerDoctor = async (req, res) => {
     const {
+        firstName,
+        lastName,
         name,
         email,
         password, // Changed from phone/etc to destructure properly
@@ -32,7 +34,8 @@ exports.registerDoctor = async (req, res) => {
         doctorPhoto,
         department,
         bio,
-        availableHours
+        availableHours,
+        gender
     } = req.body;
 
     try {
@@ -47,16 +50,57 @@ exports.registerDoctor = async (req, res) => {
             return res.status(400).json({ msg: 'Doctor with this Medical Registration Number already exists' });
         }
 
+        // Normalize / format phone numbers with +91 prefix
+        const basePhone = personalPhone || phone;
+        let formattedPersonalPhone = basePhone;
+        if (formattedPersonalPhone) {
+            const digits = formattedPersonalPhone.replace(/\D/g, '').slice(-10);
+            formattedPersonalPhone = `+91${digits}`;
+        } else {
+            return res.status(400).json({ msg: 'Personal phone number is required' });
+        }
+
+        let formattedHospitalPhone = hospitalPhone;
+        if (formattedHospitalPhone) {
+            const digits = formattedHospitalPhone.replace(/\D/g, '').slice(-10);
+            formattedHospitalPhone = `+91${digits}`;
+        }
+
+        // Check phone uniqueness
+        const phoneExist = await Doctor.findOne({ personalPhone: formattedPersonalPhone });
+        if (phoneExist) {
+            return res.status(400).json({ msg: 'Phone number already registered' });
+        }
+
         // Hash Password
         const salt = await bcrypt.genSalt(10);
         const passwordHash = await bcrypt.hash(password, salt);
 
+        // Generate dynamic unique doctorId: DR + YY (2-digit registration year) + RRR (3-digit random number)
+        let isUnique = false;
+        let doctorId = '';
+        const currentYear = new Date().getFullYear().toString().slice(-2); // e.g. "26"
+
+        while (!isUnique) {
+            const rand = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+            doctorId = `DR${currentYear}${rand}`;
+            const existingDoc = await Doctor.findOne({ doctorId });
+            if (!existingDoc) {
+                isUnique = true;
+            }
+        }
+
+        const combinedName = `Dr. ${(firstName || '').trim()} ${(lastName || '').trim()}`.trim() || name;
+
         doctor = new Doctor({
-            name,
+            name: combinedName,
+            firstName: firstName,
+            lastName: lastName,
+            doctorId: doctorId,
             email,
             passwordHash,
-            personalPhone: personalPhone || phone, // Handle potential field mismatch
-            hospitalPhone,
+            personalPhone: formattedPersonalPhone,
+            hospitalPhone: formattedHospitalPhone,
             specialization,
             experience,
             hospitalName,
@@ -85,7 +129,8 @@ exports.registerDoctor = async (req, res) => {
             // Optional fields
             department,
             bio,
-            availableHours
+            availableHours,
+            gender
         });
 
         await doctor.save();
@@ -95,7 +140,7 @@ exports.registerDoctor = async (req, res) => {
         try {
             await notificationService.sendToAdmin(
                 'New Doctor Registration',
-                `Doctor ${name} (${specialization}) has registered and is waiting for verification.\nReg No: ${registrationNumber}`,
+                `Doctor ${combinedName} (${specialization}) has registered and is waiting for verification.\nReg No: ${registrationNumber}`,
                 'DOCTOR_REGISTRATION'
             );
         } catch (notifyErr) {
@@ -514,7 +559,8 @@ exports.updateCurrentDoctor = async (req, res) => {
             keywords,
             documents, // Handling document URL updates
             facilities,
-            languages
+            languages,
+            gender
         } = req.body;
 
         let doctor = await Doctor.findById(req.user.id);
@@ -541,6 +587,7 @@ exports.updateCurrentDoctor = async (req, res) => {
         if (req.body.weeklyAvailability) doctor.weeklyAvailability = req.body.weeklyAvailability;
         if (keywords) doctor.keywords = keywords;
         if (languages) doctor.languages = languages;
+        if (gender) doctor.gender = gender;
 
         if (req.body.diseaseImages) doctor.diseaseImages = req.body.diseaseImages;
         if (req.body.clinicImages) doctor.clinicImages = req.body.clinicImages;
@@ -1103,5 +1150,97 @@ exports.markNotificationAsRead = async (req, res) => {
     } catch (err) {
         console.error(err.message);
         res.status(500).json({ success: false, msg: 'Server Error' });
+    }
+};
+
+// @desc    Get all staff for current doctor
+// @route   GET api/doctors/me/staff
+// @access  Private (Doctor only)
+exports.getDoctorStaff = async (req, res) => {
+    try {
+        const Staff = require('../../models/Staff');
+        const staffList = await Staff.find({ doctorId: req.user.id }).select('-passwordHash');
+        res.json(staffList);
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server Error');
+    }
+};
+
+// @desc    Add a staff member for current doctor
+// @route   POST api/doctors/me/staff
+// @access  Private (Doctor only)
+exports.addDoctorStaff = async (req, res) => {
+    const { name, email, phone, password, role } = req.body;
+
+    try {
+        const Staff = require('../../models/Staff');
+        let staff = await Staff.findOne({ email });
+        if (staff) {
+            return res.status(400).json({ msg: 'Staff email already registered' });
+        }
+
+        // Check if email already registered as doctor
+        const Doctor = require('../../models/Doctor');
+        const doctor = await Doctor.findOne({ email });
+        if (doctor) {
+            return res.status(400).json({ msg: 'Email already registered as a doctor' });
+        }
+
+        const salt = await bcrypt.genSalt(10);
+        const passwordHash = await bcrypt.hash(password, salt);
+
+        // Generate unique staffId: ST + YY (2-digit registration year) + RRR (3-digit random number)
+        let isUnique = false;
+        let staffId = '';
+        const currentYear = new Date().getFullYear().toString().slice(-2);
+
+        while (!isUnique) {
+            const rand = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+            staffId = `ST${currentYear}${rand}`;
+            const existingStaff = await Staff.findOne({ staffId });
+            if (!existingStaff) {
+                isUnique = true;
+            }
+        }
+
+        staff = new Staff({
+            name,
+            staffId,
+            email,
+            phone,
+            passwordHash,
+            role: role || 'RECEPTIONIST',
+            doctorId: req.user.id
+        });
+
+        await staff.save();
+        
+        const staffObj = staff.toObject();
+        delete staffObj.passwordHash;
+        
+        res.json(staffObj);
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server Error');
+    }
+};
+
+// @desc    Delete/Deactivate a staff member
+// @route   DELETE api/doctors/me/staff/:staffId
+// @access  Private (Doctor only)
+exports.deleteDoctorStaff = async (req, res) => {
+    try {
+        const Staff = require('../../models/Staff');
+        const staff = await Staff.findOne({ _id: req.params.staffId, doctorId: req.user.id });
+        if (!staff) {
+            return res.status(404).json({ msg: 'Staff member not found' });
+        }
+
+        await Staff.findByIdAndDelete(req.params.staffId);
+        res.json({ msg: 'Staff member deleted' });
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server Error');
     }
 };

@@ -19,7 +19,7 @@ const connectDB = async () => {
 const resetPassword = async () => {
     await connectDB();
     try {
-        const email = 'ramesh07@gmail.com'; // Hardcoded for now
+        const email = 'srikanthnamoju06@gmail.com';
         const newPassword = 'Password@123';
 
         const doctor = await Doctor.findOne({ email });

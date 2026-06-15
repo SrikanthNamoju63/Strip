@@ -14,7 +14,7 @@ import {
 } from '../services/api';
 import {
     Star, ShieldAlert, RefreshCw, Eye, Building, GraduationCap, Phone, Mail, Award, MapPin, Briefcase, Video,
-    ArrowLeft, Check, X, FileText, Calendar, CreditCard, Link, CheckSquare, Globe
+    ArrowLeft, Check, X, FileText, Calendar, CreditCard, Link, CheckSquare, Globe, Landmark, User
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -39,6 +39,7 @@ const DoctorDetails = () => {
 
     // Document Preview State
     const [selectedDoc, setSelectedDoc] = useState(null);
+    const [showAllActivity, setShowAllActivity] = useState(false);
 
     useEffect(() => {
         fetchDetails();
@@ -116,7 +117,7 @@ const DoctorDetails = () => {
 
     if (loading) return (
         <div className="flex items-center justify-center min-h-[500px]">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            <div className="loader"></div>
         </div>
     );
     if (!doctor) return <div className="p-10 text-center text-slate-500">Doctor not found</div>;
@@ -185,7 +186,12 @@ const DoctorDetails = () => {
                 <div className="flex-1 w-full relative z-10">
                     <div className="flex flex-col md:flex-row justify-between items-start gap-4">
                         <div>
-                            <h1 className="text-3xl font-bold text-slate-900 mb-1">{doctor.name}</h1>
+                            <div className="flex items-center gap-3 flex-wrap mb-1.5">
+                                <h1 className="text-3xl font-bold text-slate-900">{doctor.name}</h1>
+                                <span className="px-2.5 py-0.5 bg-slate-100 text-slate-600 text-xs font-mono font-bold rounded border border-slate-200 shadow-sm mt-1">
+                                    ID: {doctor.doctorId || doctor._id}
+                                </span>
+                            </div>
                             <div className="flex items-center gap-3 text-slate-500 mb-4">
                                 <span className="flex items-center gap-1"><Award size={16} className="text-blue-500" /> {doctor.specialization}</span>
                                 <span>•</span>
@@ -286,95 +292,131 @@ const DoctorDetails = () => {
                 </div>
             </div>
 
-            {/* Stats & History */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-2 space-y-6">
-                    {/* Documents Section */}
-                    <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-100">
-                        <h3 className="text-lg font-bold mb-6 flex items-center gap-2 text-slate-800">
-                            <FileText size={20} className="text-blue-500" /> Documents
-                        </h3>
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                            {doctor.documents || doctor.educationDetails?.licenseImage ? (
-                                <>
-                                    {doctor.documents?.degreeCertificateUrl && <DocThumbnail label="Degree Certificate" url={doctor.documents.degreeCertificateUrl} onSelect={setSelectedDoc} />}
-                                    {doctor.documents?.medicalRegistrationUrl && <DocThumbnail label="Medical Registration" url={doctor.documents.medicalRegistrationUrl} onSelect={setSelectedDoc} />}
-                                    {doctor.documents?.idProofUrl && <DocThumbnail label="ID Proof" url={doctor.documents.idProofUrl} onSelect={setSelectedDoc} />}
-                                    {doctor.educationDetails?.licenseImage && <DocThumbnail label="Medical License" url={doctor.educationDetails.licenseImage} onSelect={setSelectedDoc} />}
-                                    {doctor.identityProof && <DocThumbnail label="Identity Proof (Govt)" url={doctor.identityProof} onSelect={setSelectedDoc} />}
-                                </>
-                            ) : (
-                                <p className="text-slate-400 italic col-span-3 text-center py-4">No documents uploaded yet.</p>
-                            )}
+            {/* Stats & History Rows */}
+            <div className="space-y-6">
+                {/* Row 1: Documents & Financials */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div className="lg:col-span-2">
+                        {/* Documents Section */}
+                        <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-100 h-full">
+                            <h3 className="text-lg font-bold mb-6 flex items-center gap-2 text-slate-800">
+                                <FileText size={20} className="text-blue-500" /> Documents
+                            </h3>
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                {doctor.documents || doctor.educationDetails?.licenseImage ? (
+                                    <>
+                                        {doctor.documents?.degreeCertificateUrl && <DocThumbnail label="Degree Certificate" url={doctor.documents.degreeCertificateUrl} onSelect={setSelectedDoc} />}
+                                        {doctor.documents?.medicalRegistrationUrl && <DocThumbnail label="Medical Registration" url={doctor.documents.medicalRegistrationUrl} onSelect={setSelectedDoc} />}
+                                        {doctor.documents?.idProofUrl && <DocThumbnail label="ID Proof" url={doctor.documents.idProofUrl} onSelect={setSelectedDoc} />}
+                                        {doctor.educationDetails?.licenseImage && <DocThumbnail label="Medical License" url={doctor.educationDetails.licenseImage} onSelect={setSelectedDoc} />}
+                                        {doctor.identityProof && <DocThumbnail label="Identity Proof (Govt)" url={doctor.identityProof} onSelect={setSelectedDoc} />}
+                                    </>
+                                ) : (
+                                    <p className="text-slate-400 italic col-span-3 text-center py-4">No documents uploaded yet.</p>
+                                )}
+                            </div>
                         </div>
                     </div>
 
-                    {/* Appointment History */}
-                    <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-100">
-                        <h3 className="text-lg font-bold mb-6 flex items-center gap-2 text-slate-800">
-                            <Calendar size={20} className="text-purple-500" /> Recent Activity
-                        </h3>
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-sm text-left">
-                                <thead className="text-slate-500 bg-slate-50 border-b border-slate-100">
-                                    <tr>
-                                        <th className="px-4 py-3 font-semibold">Date</th>
-                                        <th className="px-4 py-3 font-semibold">Patient</th>
-                                        <th className="px-4 py-3 font-semibold">Status</th>
-                                        <th className="px-4 py-3 font-semibold text-right">Fee</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-slate-50">
-                                    {appointments.slice(0, 5).map(app => (
-                                        <tr key={app._id} className="hover:bg-slate-50/50">
-                                            <td className="px-4 py-3 text-slate-600">{new Date(app.appointmentDate).toLocaleDateString()}</td>
-                                            <td className="px-4 py-3 font-medium text-slate-800">{app.userId?.name || 'Unknown'}</td>
-                                            <td className="px-4 py-3">
-                                                <span className={`px-2 py-0.5 rounded text-xs font-bold ${app.status === 'COMPLETED' ? 'bg-green-100 text-green-700' :
-                                                    app.status === 'CANCELLED' ? 'bg-red-100 text-red-700' :
-                                                        'bg-blue-100 text-blue-700'
-                                                    }`}>{app.status}</span>
-                                            </td>
-                                            <td className="px-4 py-3 text-right text-slate-600">₹{app.consultationFee}</td>
-                                        </tr>
-                                    ))}
-                                    {appointments.length === 0 && <tr><td colSpan="4" className="px-4 py-8 text-center text-slate-400">No appointments history available</td></tr>}
-                                </tbody>
-                            </table>
+                    <div className="lg:col-span-1">
+                        {/* Financial Summary */}
+                        <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-100 h-full">
+                            <h3 className="text-lg font-bold mb-6 flex items-center gap-2 text-slate-800">
+                                <CreditCard size={20} className="text-emerald-500" /> Financials
+                            </h3>
+                            <div className="space-y-3">
+                                <FinanceRow label="Total Revenue" value={stats?.finance?.totalRevenue} />
+                                <FinanceRow label="Admin Commission" value={stats?.finance?.adminEarnings} color="text-emerald-600" prefix="+" />
+                                <FinanceRow label="Doctor Payouts" value={stats?.finance?.doctorPayouts} color="text-blue-600" />
+                                <FinanceRow label="Refunds" value={stats?.finance?.totalRefunds} color="text-red-500" prefix="-" />
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                {/* Financial Summary */}
-                <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-100 h-fit">
-                    <h3 className="text-lg font-bold mb-6 flex items-center gap-2 text-slate-800">
-                        <CreditCard size={20} className="text-emerald-500" /> Financials
-                    </h3>
-                    <div className="space-y-3">
-                        <FinanceRow label="Total Revenue" value={stats?.finance?.totalRevenue} />
-                        <FinanceRow label="Admin Commission" value={stats?.finance?.adminEarnings} color="text-emerald-600" prefix="+" />
-                        <FinanceRow label="Doctor Payouts" value={stats?.finance?.doctorPayouts} color="text-blue-600" />
-                        <FinanceRow label="Refunds" value={stats?.finance?.totalRefunds} color="text-red-500" prefix="-" />
+                {/* Row 2: Recent Activity & Payout Method */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div className="lg:col-span-2">
+                        {/* Appointment History */}
+                        <motion.layout className="bg-white rounded-xl p-6 shadow-sm border border-slate-100 h-full flex flex-col">
+                            <div className="flex items-center justify-between mb-6">
+                                <h3 className="text-lg font-bold flex items-center gap-2 text-slate-800">
+                                    <Calendar size={20} className="text-purple-500" /> Recent Activity
+                                </h3>
+                                {appointments.length > 5 && (
+                                    <button
+                                        onClick={() => setShowAllActivity(!showAllActivity)}
+                                        className="text-sm font-bold text-blue-600 hover:text-blue-700 transition-colors"
+                                    >
+                                        {showAllActivity ? 'Show Less' : 'See All'}
+                                    </button>
+                                )}
+                            </div>
+                            <motion.div layout className="overflow-hidden flex-1 relative">
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-sm text-left">
+                                        <thead className="text-slate-500 bg-slate-50 border-b border-slate-100">
+                                            <tr>
+                                                <th className="px-4 py-3 font-semibold">Date</th>
+                                                <th className="px-4 py-3 font-semibold">Patient</th>
+                                                <th className="px-4 py-3 font-semibold">Status</th>
+                                                <th className="px-4 py-3 font-semibold text-right">Fee</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-50">
+                                            <AnimatePresence>
+                                                {appointments.slice(0, showAllActivity ? undefined : 5).map(app => (
+                                                    <motion.tr 
+                                                        layout 
+                                                        initial={{ opacity: 0 }}
+                                                        animate={{ opacity: 1 }}
+                                                        exit={{ opacity: 0 }}
+                                                        key={app._id} 
+                                                        className="hover:bg-slate-50/50"
+                                                    >
+                                                        <td className="px-4 py-3 text-slate-600">{new Date(app.appointmentDate).toLocaleDateString()}</td>
+                                                        <td className="px-4 py-3 font-medium text-slate-800">{app.userId?.name || 'Unknown'}</td>
+                                                        <td className="px-4 py-3">
+                                                            <span className={`px-2 py-0.5 rounded text-xs font-bold ${app.status === 'COMPLETED' ? 'bg-green-100 text-green-700' :
+                                                                app.status === 'CANCELLED' ? 'bg-red-100 text-red-700' :
+                                                                    'bg-blue-100 text-blue-700'
+                                                                }`}>{app.status}</span>
+                                                        </td>
+                                                        <td className="px-4 py-3 text-right text-slate-600">₹{app.consultationFee}</td>
+                                                    </motion.tr>
+                                                ))}
+                                            </AnimatePresence>
+                                            {appointments.length === 0 && <tr><td colSpan="4" className="px-4 py-8 text-center text-slate-400">No appointments history available</td></tr>}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </motion.div>
+                        </motion.layout>
+                    </div>
 
-                        <div className="pt-6 mt-6 border-t border-slate-100">
-                            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Payout Method</h4>
-                            {doctor.bankDetails ? (
-                                <div className="space-y-3">
-                                    <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
+                    <div className="lg:col-span-1">
+                        {/* Payout Method */}
+                        <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-100 h-full">
+                            <h3 className="text-lg font-bold mb-6 flex items-center gap-2 text-slate-800">
+                                <Landmark size={20} className="text-indigo-500" /> Payout Method
+                            </h3>
+                            {doctor.bankDetails && doctor.bankDetails.accountNumber ? (
+                                <div className="space-y-4">
+                                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
                                         <div className="flex justify-between items-start mb-2">
-                                            <p className="font-bold text-slate-800 text-sm">{doctor.bankDetails.bankName}</p>
-                                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold border ${doctor.bankDetails.verificationStatus === 'VERIFIED' ? 'bg-green-50 border-green-200 text-green-700' : 'bg-amber-50 border-amber-200 text-amber-700'}`}>
+                                            <p className="font-bold text-slate-800">{doctor.bankDetails.bankName}</p>
+                                            <span className={`px-2 py-1 rounded text-xs font-bold border ${doctor.bankDetails.verificationStatus === 'VERIFIED' ? 'bg-green-50 border-green-200 text-green-700' : 'bg-amber-50 border-amber-200 text-amber-700'}`}>
                                                 {doctor.bankDetails.verificationStatus}
                                             </span>
                                         </div>
-                                        <p className="text-xs text-slate-500 font-mono">**** {doctor.bankDetails.accountNumber?.slice(-4)}</p>
+                                        <p className="text-sm text-slate-500 font-mono">**** {doctor.bankDetails.accountNumber?.slice(-4)}</p>
 
                                         {doctor.bankDetails.verificationStatus === 'PENDING' && (
-                                            <div className="mt-3 flex justify-end">
+                                            <div className="mt-4 flex justify-end">
                                                 <button
                                                     onClick={() => handleAction('VERIFY_BANK')}
                                                     disabled={isSubmitting}
-                                                    className="px-3 py-1.5 bg-blue-600 text-white text-xs font-bold rounded-lg shadow-sm hover:bg-blue-700 transition-colors disabled:opacity-50"
+                                                    className="px-4 py-2 bg-blue-600 text-white text-sm font-bold rounded-lg shadow-sm hover:bg-blue-700 transition-colors disabled:opacity-50"
                                                 >
                                                     Verify Bank
                                                 </button>
@@ -383,39 +425,39 @@ const DoctorDetails = () => {
                                     </div>
 
                                     {/* Razorpay Status */}
-                                    <div className={`p-3 rounded-lg border flex flex-col gap-3 ${doctor.bankDetails.razorpayAccountId
+                                    <div className={`p-4 rounded-xl border flex flex-col gap-3 ${doctor.bankDetails.razorpayAccountId
                                         ? 'bg-emerald-50 border-emerald-100'
                                         : 'bg-slate-50 border-slate-100'
                                         }`}>
                                         <div className="flex items-center justify-between">
-                                            <div className="flex items-center gap-2">
-                                                <div className={`p-1.5 rounded-full ${doctor.bankDetails.razorpayAccountId
+                                            <div className="flex items-center gap-3">
+                                                <div className={`p-2 rounded-full ${doctor.bankDetails.razorpayAccountId
                                                     ? 'bg-emerald-100 text-emerald-600'
                                                     : 'bg-slate-200 text-slate-500'
                                                     }`}>
-                                                    <CreditCard size={14} />
+                                                    <CreditCard size={18} />
                                                 </div>
                                                 <div>
-                                                    <p className="text-xs font-bold text-slate-700">Razorpay Payouts</p>
-                                                    <p className="text-[10px] text-slate-500">
+                                                    <p className="text-sm font-bold text-slate-800">Razorpay Payouts</p>
+                                                    <p className="text-xs text-slate-500 mt-0.5">
                                                         {doctor.bankDetails.razorpayAccountId ? `Linked: ${doctor.bankDetails.razorpayAccountId}` : 'Not Linked'}
                                                     </p>
                                                 </div>
                                             </div>
-                                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${doctor.bankDetails.kycStatus === 'ACTIVE' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600'
+                                            <span className={`px-2 py-1 rounded text-xs font-bold ${doctor.bankDetails.kycStatus === 'ACTIVE' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600'
                                                 }`}>
                                                 {doctor.bankDetails.razorpayAccountId ? (doctor.bankDetails.kycStatus || 'PENDING') : 'INACTIVE'}
                                             </span>
                                         </div>
 
                                         {!doctor.bankDetails.razorpayAccountId && doctor.bankDetails.verificationStatus === 'VERIFIED' && (
-                                            <div className="flex justify-end border-t border-slate-200 pt-2">
+                                            <div className="flex justify-end border-t border-slate-200 pt-3 mt-1">
                                                 <button
                                                     onClick={() => handleAction('ONBOARD_RAZORPAY')}
                                                     disabled={isSubmitting}
-                                                    className="px-3 py-1.5 bg-indigo-600 text-white text-xs font-bold rounded-lg shadow-sm hover:bg-indigo-700 transition-colors disabled:opacity-50 flex items-center gap-1"
+                                                    className="px-4 py-2 bg-indigo-600 text-white text-sm font-bold rounded-lg shadow-sm hover:bg-indigo-700 transition-colors disabled:opacity-50 flex items-center gap-2"
                                                 >
-                                                    <RefreshCw size={12} className={isSubmitting ? 'animate-spin' : ''} />
+                                                    <RefreshCw size={16} className={isSubmitting ? 'animate-spin' : ''} />
                                                     Create Linked Account
                                                 </button>
                                             </div>
@@ -423,7 +465,12 @@ const DoctorDetails = () => {
                                     </div>
                                 </div>
                             ) : (
-                                <p className="text-sm text-slate-400 italic flex items-center gap-2"><ShieldAlert size={14} /> No bank details linked</p>
+                                <div className="h-full flex flex-col items-center justify-center py-8">
+                                    <div className="bg-slate-100 p-3 rounded-full mb-3 text-slate-400">
+                                        <ShieldAlert size={24} />
+                                    </div>
+                                    <p className="text-sm text-slate-500 font-medium">No bank details linked</p>
+                                </div>
                             )}
                         </div>
                     </div>

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mobile_app/widgets/conic_loader.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'dart:async';
 import '../services/api_service.dart';
@@ -101,7 +102,7 @@ class _MyAppointmentsScreenState extends State<MyAppointmentsScreen> {
           Expanded(
             child:
                 isLoading
-                    ? const Center(child: CircularProgressIndicator())
+                    ? const Center(child: ConicLoader())
                     : appointments.isEmpty
                     ? EmptyStateWidget(
                       title: 'No Appointments',

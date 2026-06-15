@@ -9,7 +9,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
     const navigate = useNavigate();
     const location = useLocation();
 
-    const { logout } = useAuth(); // Get logout function from AuthContext
+    const { user, logout } = useAuth(); // Get user and logout from AuthContext
 
     const [showLogoutModal, setShowLogoutModal] = useState(false);
 
@@ -23,17 +23,19 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
         navigate('/login');
     };
 
+    const isStaff = user?.role === 'RECEPTIONIST' || user?.role === 'NURSE';
+
     const menuItems = [
         { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
         { icon: Calendar, label: 'Appointments', path: '/appointments' },
         { icon: Clock, label: 'Availability', path: '/availability' },
-        { icon: Activity, label: 'Earnings', path: '/earnings' },
+        { icon: Activity, label: 'Earnings', path: '/earnings', doctorOnly: true },
         { icon: Heart, label: 'Health Analysis', path: '/health-analysis' },
         { icon: Bell, label: 'Notifications', path: '/notifications' },
-        { icon: BarChart3, label: 'Analytics', path: '/analytics' },
+        { icon: BarChart3, label: 'Analytics', path: '/analytics', doctorOnly: true },
         { icon: FileText, label: 'Feedbacks', path: '/feedbacks' },
         { icon: User, label: 'Profile', path: '/profile' },
-    ];
+    ].filter(item => !isStaff || !item.doctorOnly);
 
     return (
         <>

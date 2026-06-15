@@ -29,6 +29,13 @@ const protect = function (req, res, next) {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         // console.log('Auth Middleware - Token Verified. User:', decoded.user);
         req.user = decoded.user;
+        
+        // Context mapping for staff (receptionists/nurses)
+        if (req.user && ['RECEPTIONIST', 'NURSE'].includes(req.user.role)) {
+            req.user.staffId = req.user.id;
+            req.user.id = req.user.doctorId;
+        }
+        
         next();
     } catch (err) {
         console.error('Auth Middleware - Verification Failed:', err.message);

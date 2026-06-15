@@ -45,49 +45,140 @@ exports.apiHealth = async (req, res) => {
 
 exports.advancedAnalytics = async (req, res) => {
     try {
-        const fakeRevenueTrend = [];
-        const fakeTransactionVolume = [];
-        const fakeUserGrowth = [];
+        const { range } = req.query; // e.g. '7days', '30days', '1year', 'all'
         
-        // Generate last 7 days data
-        for (let i = 6; i >= 0; i--) {
-            const date = new Date(Date.now() - i * 24 * 60 * 60 * 1000).toLocaleDateString();
-            const rev = Math.floor(Math.random() * 50000) + 10000;
-            fakeRevenueTrend.push({ date, revenue: rev, commission: Math.floor(rev * 0.1) });
+        // Models needed
+        const Payment = require('../../models/Payment');
+        const Appointment = require('../../models/Appointment');
+        const User = require('../../models/User');
+        const Doctor = require('../../models/Doctor');
+
+        let startDate = new Date();
+        let previousStartDate = new Date();
+        let isAllTime = false;
+
+        if (range === '7days') {
+            startDate.setDate(startDate.getDate() - 7);
+            previousStartDate.setDate(previousStartDate.getDate() - 14);
+        } else if (range === '30days') {
+            startDate.setDate(startDate.getDate() - 30);
+            previousStartDate.setDate(previousStartDate.getDate() - 60);
+        } else if (range === '1year') {
+            startDate.setFullYear(startDate.getFullYear() - 1);
+            previousStartDate.setFullYear(previousStartDate.getFullYear() - 2);
+        } else {
+            startDate = new Date(0); // All time
+            previousStartDate = new Date(0);
+            isAllTime = true;
+        }
+        
+        // Revenue Trend (Daily)
+        const revenueTrendRaw = await Payment.aggregate([
+            { $match: { paidAt: { $gte: startDate }, paymentStatus: 'CAPTURED' } },
+            {
+                $group: {
+                    _id: { $dateToString: { format: "%Y-%m-%d", date: "$paidAt" } },
+                    revenue: { $sum: "$totalAmount" },
+                    commission: { $sum: "$platformCommission" }
+                }
+            },
+            { $sort: { _id: 1 } }
+        ]);
+
+        const revenueTrend = revenueTrendRaw.map(item => ({
+            date: item._id,
+            revenue: item.revenue,
+            commission: item.commission
+        }));
+
+        // Current Period Totals
+        const totalRevenueResult = await Payment.aggregate([
+            { $match: { paidAt: { $gte: startDate }, paymentStatus: 'CAPTURED' } },
+            { $group: { _id: null, total: { $sum: "$totalAmount" }, count: { $sum: 1 } } }
+        ]);
+        const totalRevenue = totalRevenueResult[0]?.total || 0;
+        const totalTransactions = totalRevenueResult[0]?.count || 0;
+        
+        const totalAppointments = await Appointment.countDocuments({ createdAt: { $gte: startDate } });
+        const activeUsers = await User.countDocuments({ createdAt: { $gte: startDate } });
+
+        // Previous Period Totals (for percentage change)
+        let revenueChange = 0, transactionChange = 0, usersChange = 0, appointmentChange = 0;
+
+        if (!isAllTime) {
+            const prevRevenueResult = await Payment.aggregate([
+                { $match: { paidAt: { $gte: previousStartDate, $lt: startDate }, paymentStatus: 'CAPTURED' } },
+                { $group: { _id: null, total: { $sum: "$totalAmount" }, count: { $sum: 1 } } }
+            ]);
+            const prevTotalRevenue = prevRevenueResult[0]?.total || 0;
+            const prevTotalTransactions = prevRevenueResult[0]?.count || 0;
             
-            const trans = Math.floor(Math.random() * 200) + 50;
-            fakeTransactionVolume.push({ date, transactions: trans, completed: Math.floor(trans * 0.85), failed: Math.floor(trans * 0.15) });
-            
-            const pats = Math.floor(Math.random() * 1000) + 500;
-            fakeUserGrowth.push({ date, patients: pats + (6-i)*50, doctors: 120 + (6-i)*2 });
+            const prevTotalAppointments = await Appointment.countDocuments({ createdAt: { $gte: previousStartDate, $lt: startDate } });
+            const prevActiveUsers = await User.countDocuments({ createdAt: { $gte: previousStartDate, $lt: startDate } });
+
+            const calcChange = (current, prev) => prev === 0 ? (current > 0 ? 100 : 0) : Number((((current - prev) / prev) * 100).toFixed(1));
+
+            revenueChange = calcChange(totalRevenue, prevTotalRevenue);
+            transactionChange = calcChange(totalTransactions, prevTotalTransactions);
+            appointmentChange = calcChange(totalAppointments, prevTotalAppointments);
+            usersChange = calcChange(activeUsers, prevActiveUsers);
         }
 
+        // User Growth (Daily)
+        const userGrowthRaw = await User.aggregate([
+            { $match: { createdAt: { $gte: startDate } } },
+            { $group: { _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } }, count: { $sum: 1 } } },
+            { $sort: { _id: 1 } }
+        ]);
+        
+        const doctorGrowthRaw = await Doctor.aggregate([
+            { $match: { createdAt: { $gte: startDate } } },
+            { $group: { _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } }, count: { $sum: 1 } } },
+            { $sort: { _id: 1 } }
+        ]);
+
+        // Merge user and doctor into one growth array
+        const growthMap = {};
+        userGrowthRaw.forEach(u => {
+            if(!growthMap[u._id]) growthMap[u._id] = { date: u._id, patients: 0, doctors: 0 };
+            growthMap[u._id].patients = u.count;
+        });
+        doctorGrowthRaw.forEach(d => {
+            if(!growthMap[d._id]) growthMap[d._id] = { date: d._id, patients: 0, doctors: 0 };
+            growthMap[d._id].doctors = d.count;
+        });
+        const userGrowth = Object.values(growthMap).sort((a,b) => a.date.localeCompare(b.date));
+
+        // Payment Methods Pie
+        const paymentMethodsRaw = await Payment.aggregate([
+            { $match: { paidAt: { $gte: startDate }, paymentStatus: 'CAPTURED' } },
+            { $group: { _id: "$paymentMethod", value: { $sum: 1 } } }
+        ]);
+        const paymentMethods = paymentMethodsRaw.map(pm => ({ name: pm._id || 'Unknown', value: pm.value }));
+
+        // Appointment Status Pie
+        const appointmentStatusRaw = await Appointment.aggregate([
+            { $match: { createdAt: { $gte: startDate } } },
+            { $group: { _id: "$status", value: { $sum: 1 } } }
+        ]);
+        const appointmentStatusDist = appointmentStatusRaw.map(a => ({
+            name: a._id,
+            value: a.value
+        }));
+
         res.json({
-            totalRevenue: 854300,
-            revenueChange: 12.5,
-            totalTransactions: 3245,
-            transactionChange: 8.2,
-            activeUsers: 12540,
-            usersChange: 15.3,
-            totalAppointments: 2150,
-            appointmentChange: 5.4,
-            revenueTrend: fakeRevenueTrend,
-            transactionVolume: fakeTransactionVolume,
-            userGrowth: fakeUserGrowth,
-            paymentMethods: [
-                { name: 'Credit/Debit Card', value: 45 },
-                { name: 'UPI', value: 35 },
-                { name: 'Net Banking', value: 15 },
-                { name: 'Wallet', value: 5 }
-            ],
-            detailedMetrics: [
-                { name: 'Patient Registrations', value: '1,245', change: 15.2, percentage: '100.0' },
-                { name: 'Doctor Onboardings', value: '42', change: 5.5, percentage: '3.4' },
-                { name: 'Successful Consultations', value: '1,890', change: 8.8, percentage: '87.9' },
-                { name: 'Cancelled Appointments', value: '260', change: -2.4, percentage: '12.1' },
-                { name: 'Average Rating', value: '4.8', change: 1.2, percentage: 'N/A' },
-                { name: 'Refund Requests', value: '15', change: -5.0, percentage: '0.7' }
-            ]
+            totalRevenue,
+            revenueChange, 
+            totalTransactions,
+            transactionChange,
+            activeUsers,
+            usersChange,
+            totalAppointments,
+            appointmentChange,
+            revenueTrend,
+            userGrowth,
+            paymentMethods,
+            appointmentStatusDist
         });
     } catch (error) {
         console.error('Advanced analytics error:', error);

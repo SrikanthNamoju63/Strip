@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mobile_app/widgets/conic_loader.dart';
 import 'dart:convert';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/api_service.dart';
@@ -71,7 +72,7 @@ class _DoctorSearchResultsScreenState extends State<DoctorSearchResultsScreen> {
       body:
           _isLoading
               ? Center(
-                child: CircularProgressIndicator(color: Colors.blue.shade600),
+                child: ConicLoader(color: Colors.blue.shade600),
               )
               : _error != null
               ? Center(
@@ -170,16 +171,33 @@ class _DoctorSearchResultsScreenState extends State<DoctorSearchResultsScreen> {
                                   SizedBox(height: 4),
                                   Row(
                                     children: [
+                                      Icon(Icons.work_outline, size: 14, color: Colors.grey.shade600),
+                                      SizedBox(width: 4),
+                                      Text(
+                                        "${doctor['experience'] ?? 0}+ Yrs",
+                                        style: GoogleFonts.outfit(fontSize: 12, color: Colors.grey.shade600),
+                                      ),
+                                      SizedBox(width: 12),
+                                      Icon(Icons.star, size: 14, color: Colors.amber),
+                                      SizedBox(width: 4),
+                                      Text(
+                                        "${doctor['ratings']?['averageRating']?.toStringAsFixed(1) ?? '0.0'}",
+                                        style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.bold),
+                                      ),
+                                    ],
+                                  ),
+                                  SizedBox(height: 4),
+                                  Row(
+                                    children: [
                                       Icon(
-                                        Icons.location_on,
+                                        Icons.local_hospital_outlined,
                                         size: 14,
                                         color: Colors.grey,
                                       ),
                                       SizedBox(width: 4),
                                       Expanded(
                                         child: Text(
-                                          doctor['clinicAddress']?['city'] ??
-                                              'Unknown Location',
+                                          "${doctor['clinicAddress']?['name'] != null ? doctor['clinicAddress']['name'] + ', ' : ''}${doctor['clinicAddress']?['city'] ?? 'Unknown Location'}",
                                           style: GoogleFonts.outfit(
                                             fontSize: 12,
                                             color: Colors.grey,
@@ -194,20 +212,31 @@ class _DoctorSearchResultsScreenState extends State<DoctorSearchResultsScreen> {
                             ),
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.end,
+                              mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 Text(
-                                  "₹${doctor['consultationFee']}",
+                                  "₹${((doctor['consultationFee'] ?? 0) as num).toStringAsFixed(2)}",
                                   style: GoogleFonts.outfit(
                                     fontWeight: FontWeight.bold,
-                                    fontSize: 16,
-                                    color: Colors.green.shade700,
+                                    fontSize: 18,
+                                    color: Colors.blue.shade700,
                                   ),
                                 ),
-                                SizedBox(height: 8),
-                                Icon(
-                                  Icons.arrow_forward_ios,
-                                  size: 16,
-                                  color: Colors.grey.shade400,
+                                SizedBox(height: 12),
+                                Container(
+                                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: Colors.blue.shade50,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    "Book",
+                                    style: GoogleFonts.outfit(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 13,
+                                      color: Colors.blue.shade700,
+                                    ),
+                                  ),
                                 ),
                               ],
                             ),

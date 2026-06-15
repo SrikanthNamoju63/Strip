@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import DrStripLogo from '../components/DrStripLogo';
-import { Eye, EyeOff, Loader2, ArrowLeft, CheckCircle2 } from 'lucide-react';
+import { Eye, EyeOff, Loader2, ArrowLeft, CheckCircle2, User, Lock } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const Login = () => {
@@ -15,11 +15,85 @@ const Login = () => {
     const navigate = useNavigate();
 
     // Login Form State
-    const [loginEmail, setLoginEmail] = useState('');
+    const [loginUsername, setLoginUsername] = useState('');
     const [loginPassword, setLoginPassword] = useState('');
+    const [displayValue, setDisplayValue] = useState('');
+    const [maskTimeout, setMaskTimeout] = useState(null);
     const [showPassword, setShowPassword] = useState(false);
     const [loginError, setLoginError] = useState('');
     const [isLoginLoading, setIsLoginLoading] = useState(false);
+
+    const handlePasswordChange = (e) => {
+        const val = e.target.value;
+        
+        if (showPassword) {
+            setLoginPassword(val);
+            setDisplayValue(val);
+            return;
+        }
+
+        // 1. If empty, reset
+        if (val.length === 0) {
+            setLoginPassword('');
+            setDisplayValue('');
+            if (maskTimeout) clearTimeout(maskTimeout);
+            return;
+        }
+
+        // 2. If no bullet points exist, it is a completely new paste, autofill, or select-all-replace
+        if (!val.includes('•')) {
+            setLoginPassword(val);
+            
+            // Mask all but the last character immediately
+            const maskedPart = '•'.repeat(val.length - 1);
+            const lastChar = val.charAt(val.length - 1);
+            setDisplayValue(maskedPart + lastChar);
+
+            if (maskTimeout) clearTimeout(maskTimeout);
+
+            const timer = setTimeout(() => {
+                setDisplayValue('•'.repeat(val.length));
+            }, 800);
+            setMaskTimeout(timer);
+            return;
+        }
+
+        // 3. Otherwise, parse edit sequentially
+        let newReal = '';
+        if (val.length < loginPassword.length) {
+            // Characters deleted
+            newReal = loginPassword.slice(0, val.length);
+        } else {
+            // Characters added
+            const addedLength = val.length - loginPassword.length;
+            const addedText = val.slice(val.length - addedLength);
+            newReal = loginPassword + addedText;
+        }
+
+        setLoginPassword(newReal);
+
+        // Mask all but the last character
+        const maskedPart = '•'.repeat(newReal.length - 1);
+        const lastChar = newReal.charAt(newReal.length - 1);
+        setDisplayValue(maskedPart + lastChar);
+
+        if (maskTimeout) clearTimeout(maskTimeout);
+
+        const timer = setTimeout(() => {
+            setDisplayValue('•'.repeat(newReal.length));
+        }, 800);
+        setMaskTimeout(timer);
+    };
+
+    const toggleShowPassword = () => {
+        const nextShow = !showPassword;
+        setShowPassword(nextShow);
+        if (nextShow) {
+            setDisplayValue(loginPassword);
+        } else {
+            setDisplayValue('•'.repeat(loginPassword.length));
+        }
+    };
 
     // Forgot Password Form State
     const [forgotEmail, setForgotEmail] = useState('');
@@ -39,7 +113,7 @@ const Login = () => {
         setLoginError('');
         setIsLoginLoading(true);
         try {
-            const res = await login(loginEmail, loginPassword);
+            const res = await login(loginUsername, loginPassword);
             if (res.success) {
                 navigate('/');
             } else {
@@ -74,7 +148,7 @@ const Login = () => {
 
     return (
         <div className="min-h-screen bg-[#f5f7fb] flex justify-center items-center p-4 font-sans selection:bg-teal-100 selection:text-teal-900">
-            <div className="w-full max-w-[440px]">
+            <div className="w-full max-w-[480px]">
                 <motion.div
                     layout
                     transition={{ type: "spring", bounce: 0, duration: 0.4 }}
@@ -138,26 +212,34 @@ const Login = () => {
 
                                 <form onSubmit={handleLoginSubmit} className="space-y-5">
                                     <div className="space-y-1.5">
-                                        <label className="block text-gray-700 text-sm font-medium">Email Address</label>
-                                        <input
-                                            type="email"
-                                            value={loginEmail}
-                                            onChange={(e) => setLoginEmail(e.target.value)}
-                                            className="w-full px-4 py-3 rounded-[12px] border border-gray-200 focus:border-[#009999] focus:ring-4 focus:ring-[#009999]/10 outline-none transition-all duration-300 text-sm text-gray-900 placeholder-gray-400 bg-gray-50/50 hover:bg-white focus:bg-white"
-                                            placeholder="Enter your registered doctor email"
-                                            required
-                                            disabled={isLoginLoading}
-                                        />
+                                        <label className="block text-gray-700 text-sm font-medium">Username (Email, Doctor ID, or Staff ID)</label>
+                                        <div className="relative">
+                                            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-400">
+                                                <User size={18} />
+                                            </div>
+                                            <input
+                                                type="text"
+                                                value={loginUsername}
+                                                onChange={(e) => setLoginUsername(e.target.value)}
+                                                className="w-full pl-11 pr-4 py-3 rounded-[12px] border border-gray-200 focus:border-[#009999] focus:ring-4 focus:ring-[#009999]/10 outline-none transition-all duration-300 text-sm text-gray-900 placeholder-gray-400 bg-gray-50/50 hover:bg-white focus:bg-white"
+                                                placeholder="Enter your Login ID or registered email"
+                                                required
+                                                disabled={isLoginLoading}
+                                            />
+                                        </div>
                                     </div>
 
                                     <div className="space-y-1.5">
                                         <label className="block text-gray-700 text-sm font-medium">Password</label>
                                         <div className="relative">
+                                            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-400">
+                                                <Lock size={18} />
+                                            </div>
                                             <input
-                                                type={showPassword ? 'text' : 'password'}
-                                                value={loginPassword}
-                                                onChange={(e) => setLoginPassword(e.target.value)}
-                                                className="w-full px-4 py-3 pr-12 rounded-[12px] border border-gray-200 focus:border-[#009999] focus:ring-4 focus:ring-[#009999]/10 outline-none transition-all duration-300 text-sm text-gray-900 placeholder-gray-400 bg-gray-50/50 hover:bg-white focus:bg-white"
+                                                type="text"
+                                                value={showPassword ? loginPassword : displayValue}
+                                                onChange={handlePasswordChange}
+                                                className="w-full pl-11 pr-12 py-3 rounded-[12px] border border-gray-200 focus:border-[#009999] focus:ring-4 focus:ring-[#009999]/10 outline-none transition-all duration-300 text-sm text-gray-900 placeholder-gray-400 bg-gray-50/50 hover:bg-white focus:bg-white"
                                                 placeholder="Enter your password"
                                                 required
                                                 disabled={isLoginLoading}
@@ -165,7 +247,7 @@ const Login = () => {
                                             <button
                                                 type="button"
                                                 className="absolute inset-y-0 right-0 px-4 flex items-center text-gray-400 hover:text-[#009999] transition-colors focus:outline-none"
-                                                onClick={() => setShowPassword(!showPassword)}
+                                                onClick={toggleShowPassword}
                                                 disabled={isLoginLoading}
                                             >
                                                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -188,10 +270,8 @@ const Login = () => {
                                         className="w-full mt-2 bg-[#009999] hover:bg-[#007a7a] text-white font-medium py-3 px-4 rounded-[12px] transition-all duration-300 flex justify-center items-center gap-2 active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed disabled:active:scale-100 shadow-sm shadow-[#009999]/20"
                                     >
                                         {isLoginLoading ? (
-                                            <>
-                                                <Loader2 size={18} className="animate-spin" />
+                                                <div className="loader loader-sm loader-white"></div>
                                                 <span>Verifying Access...</span>
-                                            </>
                                         ) : (
                                             <span>Access Doctor Dashboard</span>
                                         )}
@@ -249,10 +329,8 @@ const Login = () => {
                                         className="w-full mt-2 bg-[#009999] hover:bg-[#007a7a] text-white font-medium py-3 px-4 rounded-[12px] transition-all duration-300 flex justify-center items-center gap-2 active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed disabled:active:scale-100 shadow-sm shadow-[#009999]/20"
                                     >
                                         {isForgotLoading ? (
-                                            <>
-                                                <Loader2 size={18} className="animate-spin" />
+                                                <div className="loader loader-sm loader-white"></div>
                                                 <span>Sending Link...</span>
-                                            </>
                                         ) : (
                                             <span>Send Reset Link</span>
                                         )}

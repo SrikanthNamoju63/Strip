@@ -48,6 +48,11 @@ if (process.env.USE_REDIS === 'true') {
  * Must use strong secret from Secrets Manager
  */
 const authMiddleware = async (req, res, next) => {
+  // Exclude payments webhook from JWT authentication
+  if (req.path === '/payments/webhook' || req.path === '/api/payments/webhook' || req.originalUrl === '/api/payments/webhook') {
+    return next();
+  }
+
   try {
     // Extract token from Authorization header
     // Extract token from Authorization header or x-auth-token (for Admin)
@@ -85,8 +90,13 @@ const authMiddleware = async (req, res, next) => {
     const payload = decoded.user || decoded;
 
     // Attach user info to request
+    const userId = payload.id || payload.userId || payload._id;
+    const isStaff = ['RECEPTIONIST', 'NURSE'].includes(payload.role);
+
     req.user = {
-      id: payload.id || payload.userId || payload._id,
+      id: isStaff ? payload.doctorId : userId,
+      staffId: isStaff ? userId : undefined,
+      doctorId: payload.doctorId,
       role: payload.role,
       email: payload.email,
       isDoctorModel: payload.isDoctorModel, // Preserve this flag
@@ -319,7 +329,7 @@ const requireAdmin = (req, res, next) => {
  * Doctor-only route middleware
  */
 const requireDoctor = (req, res, next) => {
-  if (!req.user || req.user.role !== 'DOCTOR') {
+  if (!req.user || (req.user.role !== 'DOCTOR' && req.user.role !== 'RECEPTIONIST' && req.user.role !== 'NURSE')) {
     return res.status(403).json({ error: 'Doctor access required' });
   }
   next();

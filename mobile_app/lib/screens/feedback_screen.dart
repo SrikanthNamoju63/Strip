@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:mobile_app/widgets/conic_loader.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import '../services/api_service.dart';
@@ -148,7 +149,7 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
                   padding: EdgeInsets.symmetric(vertical: 16),
                 ),
                 child: _isLoading
-                    ? CircularProgressIndicator(color: Colors.white)
+                    ? ConicLoader(color: Colors.white)
                     : Text(
                         'Submit Feedback',
                         style: TextStyle(fontSize: 16),
