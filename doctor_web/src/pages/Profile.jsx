@@ -19,10 +19,33 @@ const Profile = () => {
     // Staff Management States
     const [staffList, setStaffList] = useState([]);
     const [showAddStaffModal, setShowAddStaffModal] = useState(false);
+    const [editingStaff, setEditingStaff] = useState(null);
     const [newStaffData, setNewStaffData] = useState({ name: '', email: '', phone: '', password: '', role: 'RECEPTIONIST' });
     const [showStaffPassword, setShowStaffPassword] = useState(false);
     const [staffPasswordDisplayValue, setStaffPasswordDisplayValue] = useState('');
     const [staffPasswordMaskTimeout, setStaffPasswordMaskTimeout] = useState(null);
+
+    const handleCloseStaffModal = () => {
+        setShowAddStaffModal(false);
+        setEditingStaff(null);
+        setNewStaffData({ name: '', email: '', phone: '', password: '', role: 'RECEPTIONIST' });
+        setStaffPasswordDisplayValue('');
+        setShowStaffPassword(false);
+    };
+
+    const handleEditStaffClick = (staff) => {
+        setEditingStaff(staff);
+        setNewStaffData({
+            name: staff.name,
+            email: staff.email,
+            phone: staff.phone,
+            password: '', // Blank to keep current password
+            role: staff.role
+        });
+        setStaffPasswordDisplayValue('');
+        setShowStaffPassword(false);
+        setShowAddStaffModal(true);
+    };
 
     const fetchStaff = async () => {
         try {
@@ -111,9 +134,9 @@ const Profile = () => {
     };
 
     const handleCreateStaff = async () => {
-        const { name, email, phone, password } = newStaffData;
-        if (!name || !email || !phone || !password) {
-            toast.error("Please fill in all staff fields.");
+        const { name, email, phone, password, role } = newStaffData;
+        if (!name || !email || !phone || (!editingStaff && !password)) {
+            toast.error("Please fill in all required staff fields.");
             return;
         }
 
@@ -123,17 +146,24 @@ const Profile = () => {
         }
 
         try {
-            const { addDoctorStaff } = await import('../services/api');
-            const created = await addDoctorStaff(newStaffData);
-            setShowAddStaffModal(false);
-            setNewStaffData({ name: '', email: '', phone: '', password: '', role: 'RECEPTIONIST' });
-            setStaffPasswordDisplayValue('');
-            setShowStaffPassword(false);
+            if (editingStaff) {
+                const { updateDoctorStaff } = await import('../services/api');
+                const updatePayload = { name, email, phone, role };
+                if (password) {
+                    updatePayload.password = password;
+                }
+                await updateDoctorStaff(editingStaff._id, updatePayload);
+                toast.success("Staff account updated successfully!");
+            } else {
+                const { addDoctorStaff } = await import('../services/api');
+                const created = await addDoctorStaff(newStaffData);
+                toast.success(`Staff Account Created Successfully!\nLogin ID: ${created.staffId || 'N/A'}`);
+            }
+            handleCloseStaffModal();
             fetchStaff();
-            toast.success(`Staff Account Created Successfully!\nLogin ID: ${created.staffId || 'N/A'}`);
         } catch (e) {
             console.error(e);
-            toast.error(e.response?.data?.msg || "Failed to create staff account");
+            toast.error(e.response?.data?.msg || `Failed to ${editingStaff ? 'update' : 'create'} staff account`);
         }
     };
 
@@ -887,13 +917,22 @@ const Profile = () => {
                                                 </p>
                                                 <span className="inline-block px-2 py-0.5 mt-1 bg-blue-50 text-blue-700 border border-blue-100 rounded text-[10px] font-bold uppercase tracking-wider">{staff.role}</span>
                                             </div>
-                                            <button
-                                                onClick={() => handleDeleteStaff(staff._id)}
-                                                className="text-red-500 hover:bg-red-50 hover:text-red-600 p-2 rounded-lg transition"
-                                                title="Delete Staff Account"
-                                            >
-                                                <Trash2 size={16} />
-                                            </button>
+                                            <div className="flex gap-1">
+                                                <button
+                                                    onClick={() => handleEditStaffClick(staff)}
+                                                    className="text-blue-600 hover:bg-blue-50 hover:text-blue-700 p-2 rounded-lg transition"
+                                                    title="Edit Staff Details"
+                                                >
+                                                    <Edit2 size={16} />
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDeleteStaff(staff._id)}
+                                                    className="text-red-500 hover:bg-red-50 hover:text-red-600 p-2 rounded-lg transition"
+                                                    title="Delete Staff Account"
+                                                >
+                                                    <Trash2 size={16} />
+                                                </button>
+                                            </div>
                                         </div>
                                     ))}
                                 </div>
@@ -976,23 +1015,18 @@ const Profile = () => {
                     </div>
                 </div>
             </div>
-            {/* Add Staff Modal */}
+            {/* Add/Edit Staff Modal */}
             {showAddStaffModal && (
                 <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
                     <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md border border-gray-100 relative">
                         <button
-                            onClick={() => {
-                                setShowAddStaffModal(false);
-                                setNewStaffData({ name: '', email: '', phone: '', password: '', role: 'RECEPTIONIST' });
-                                setStaffPasswordDisplayValue('');
-                                setShowStaffPassword(false);
-                            }}
+                            onClick={handleCloseStaffModal}
                             className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
                         >
                             <X size={20} />
                         </button>
                         <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-                            <Users className="text-blue-600" size={24} /> Create Staff Login
+                            <Users className="text-blue-600" size={24} /> {editingStaff ? 'Edit Staff Details' : 'Create Staff Login'}
                         </h3>
                         
                         <div className="space-y-4">
@@ -1034,16 +1068,16 @@ const Profile = () => {
                                 />
                             </div>
                             <div>
-                                <label className="text-xs font-bold text-gray-500 uppercase">Password</label>
+                                <label className="text-xs font-bold text-gray-500 uppercase">{editingStaff ? 'Password (leave blank to keep current)' : 'Password'}</label>
                                 <div className="relative mt-1">
                                     <input
                                         type="text"
                                         name="password"
                                         value={showStaffPassword ? newStaffData.password : staffPasswordDisplayValue}
                                         onChange={handleStaffPasswordChange}
-                                        placeholder="Choose password"
+                                        placeholder={editingStaff ? "Leave blank to keep current" : "Choose password"}
                                         className="w-full px-4 py-2 pr-12 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-                                        required
+                                        required={!editingStaff}
                                     />
                                     <button
                                         type="button"
@@ -1070,12 +1104,7 @@ const Profile = () => {
 
                         <div className="flex gap-3 mt-8">
                             <button
-                                onClick={() => {
-                                    setShowAddStaffModal(false);
-                                    setNewStaffData({ name: '', email: '', phone: '', password: '', role: 'RECEPTIONIST' });
-                                    setStaffPasswordDisplayValue('');
-                                    setShowStaffPassword(false);
-                                }}
+                                onClick={handleCloseStaffModal}
                                 className="flex-1 px-4 py-2.5 text-gray-700 font-bold hover:bg-gray-100 rounded-xl transition border border-gray-200"
                             >
                                 Cancel
@@ -1084,7 +1113,7 @@ const Profile = () => {
                                 onClick={handleCreateStaff}
                                 className="flex-1 px-4 py-2.5 bg-blue-600 text-white font-bold hover:bg-blue-700 rounded-xl shadow-lg transition"
                             >
-                                Create Account
+                                {editingStaff ? 'Save Changes' : 'Create Account'}
                             </button>
                         </div>
                     </div>

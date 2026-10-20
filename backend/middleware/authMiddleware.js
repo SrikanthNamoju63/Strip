@@ -1,62 +1,78 @@
 const jwt = require('jsonwebtoken');
 
+const ACCESS_TOKEN_ALGORITHM = 'HS256';
+
+const getSigningSecret = () => {
+  const secret = process.env.JWT_SECRET;
+  if (!secret || secret.length < 32) {
+    throw new Error('JWT_SECRET must be configured with at least 32 characters');
+  }
+  return secret;
+};
+
+const getBearerToken = (req) => {
+  const authorization = req.get('Authorization');
+  if (authorization?.startsWith('Bearer ')) return authorization.slice(7).trim();
+  return req.get('x-auth-token')?.trim();
+};
+
+const verifyAccessToken = (token) => {
+  const decoded = jwt.verify(token, getSigningSecret(), {
+    algorithms: [ACCESS_TOKEN_ALGORITHM]
+  });
+
+  const user = decoded?.user;
+  if (!user?.id || !user?.role) {
+    const error = new jwt.JsonWebTokenError('Invalid token payload');
+    throw error;
+  }
+
+  return { decoded, user };
+};
+
 const protect = function (req, res, next) {
-    // Debug logging
-    // console.log('Auth Middleware - Headers:', req.headers);
+  const token = getBearerToken(req);
+  if (!token) {
+    return res.status(401).json({ msg: 'Authentication is required' });
+  }
 
-    // Get token from header
-    let token = req.header('x-auth-token');
+  try {
+    const { decoded, user } = verifyAccessToken(token);
+    req.user = { ...user };
 
-    // Check for Authorization header if x-auth-token is missing
-    if (!token && req.header('Authorization')) {
-        const authHeader = req.header('Authorization');
-        // console.log('Auth Middleware - Found Authorization Header:', authHeader);
-        if (authHeader.startsWith('Bearer ')) {
-            token = authHeader.slice(7, authHeader.length);
-        } else {
-            token = authHeader;
-        }
+    // Staff act within their owning doctor's scope, but retain their staff ID
+    // for profile and audit operations.
+    if (['RECEPTIONIST', 'NURSE'].includes(req.user.role)) {
+      req.user.staffId = req.user.id;
+      req.user.id = req.user.doctorId;
     }
 
-    // Check if not token
-    if (!token) {
-        console.log('Auth Middleware - No Token Found');
-        return res.status(401).json({ msg: 'No token, authorization denied' });
+    req.token = token;
+    req.tokenExpiry = decoded.exp;
+    return next();
+  } catch (err) {
+    if (err.name === 'TokenExpiredError') {
+      return res.status(401).json({ msg: 'Session expired. Please sign in again.' });
     }
-
-    // Verify token
-    try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        // console.log('Auth Middleware - Token Verified. User:', decoded.user);
-        req.user = decoded.user;
-        
-        // Context mapping for staff (receptionists/nurses)
-        if (req.user && ['RECEPTIONIST', 'NURSE'].includes(req.user.role)) {
-            req.user.staffId = req.user.id;
-            req.user.id = req.user.doctorId;
-        }
-        
-        next();
-    } catch (err) {
-        console.error('Auth Middleware - Verification Failed:', err.message);
-        res.status(401).json({ msg: 'Token is not valid', error: err.message });
+    if (err.name === 'JsonWebTokenError') {
+      return res.status(401).json({ msg: 'Invalid authentication token' });
     }
+    console.error('Authentication configuration error:', err.message);
+    return res.status(500).json({ msg: 'Authentication is unavailable' });
+  }
 };
 
-const authorize = (...roles) => {
-    return (req, res, next) => {
-        if (!req.user || !roles.includes(req.user.role)) {
-            return res.status(403).json({
-                msg: `User role ${req.user ? req.user.role : 'unknown'} is not authorized to access this route`
-            });
-        }
-        next();
-    };
+const authorize = (...roles) => (req, res, next) => {
+  if (!req.user || !roles.includes(req.user.role)) {
+    return res.status(403).json({ msg: 'You are not authorized to access this resource' });
+  }
+  return next();
 };
 
-// Export as both default function (backward compatibility) and named properties
-const middleware = protect;
-middleware.protect = protect;
-middleware.authorize = authorize;
+// Preserve the established default/named import API for existing routes.
+protect.protect = protect;
+protect.authorize = authorize;
+protect.getBearerToken = getBearerToken;
+protect.verifyAccessToken = verifyAccessToken;
 
-module.exports = middleware;
+module.exports = protect;

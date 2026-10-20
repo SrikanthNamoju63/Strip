@@ -400,12 +400,14 @@ class ApiService {
     }
   }
 
-  Future<Map<String, dynamic>?> updateUserProfile(
+  Future<Map<String, dynamic>> updateUserProfile(
     Map<String, dynamic> data,
   ) async {
     try {
       final token = await _getToken();
-      if (token == null) return null;
+      if (token == null) {
+        return {'success': false, 'error': 'Not authenticated'};
+      }
 
       final response = await http.put(
         Uri.parse('$baseUrl/users/me'),
@@ -414,12 +416,20 @@ class ApiService {
       );
 
       if (response.statusCode == 200) {
-        return jsonDecode(response.body);
+        return {'success': true, 'data': jsonDecode(response.body)};
+      } else {
+        String errMsg = 'Update failed';
+        try {
+          final body = jsonDecode(response.body);
+          if (body is Map && body.containsKey('msg')) {
+            errMsg = body['msg'];
+          }
+        } catch (_) {}
+        return {'success': false, 'error': errMsg};
       }
-      return null;
     } catch (e) {
       _Log.error('Update User Profile Error', e);
-      return null;
+      return {'success': false, 'error': 'Connection error: $e'};
     }
   }
 

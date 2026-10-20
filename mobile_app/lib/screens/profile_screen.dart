@@ -38,13 +38,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _fetchData() async {
     try {
-      final profile = await _apiService.getUserProfile();
-      final appointments = await _apiService.getUserAppointments();
-      final donations = await _apiService.getDonationHistory();
+      Map<String, dynamic>? profile;
+      try {
+        profile = await _apiService.getUserProfile();
+      } catch (e) {
+        debugPrint('Error fetching user profile in _fetchData: $e');
+      }
+
+      List<dynamic> appointments = [];
+      try {
+        appointments = await _apiService.getUserAppointments();
+      } catch (e) {
+        debugPrint('Error fetching appointments in _fetchData: $e');
+      }
+
+      List<dynamic> donations = [];
+      try {
+        donations = await _apiService.getDonationHistory();
+      } catch (e) {
+        debugPrint('Error fetching donation history in _fetchData: $e');
+      }
 
       if (mounted) {
         setState(() {
-          _userProfile = profile;
+          if (profile != null) {
+            _userProfile = profile;
+          }
 
           // Split appointments into Active and Past
           final allAppointments = appointments;
@@ -70,6 +89,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         });
       }
     } catch (e) {
+      debugPrint('General error in _fetchData: $e');
       if (mounted) {
         setState(() {
           _isLoading = false;
@@ -110,9 +130,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _openEditProfile() {
-    // ... (Keep existing simple editor logic or expand later)
-    // For brevity, keeping just the height/weight update logic here
-    // or we can reuse the previous one.
+    final nameController = TextEditingController(
+      text: _userProfile?['name']?.toString() ?? '',
+    );
+    final phoneController = TextEditingController(
+      text: _userProfile?['phone']?.toString() ?? '',
+    );
     final heightController = TextEditingController(
       text: _userProfile?['height']?.toString() ?? '',
     );
@@ -120,11 +143,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
       text: _userProfile?['weight']?.toString() ?? '',
     );
     String? selectedGender = _userProfile?['gender'];
+    if (selectedGender != 'Male' && selectedGender != 'Female' && selectedGender != 'Other') {
+      selectedGender = null;
+    }
 
     DateTime? selectedDate =
         _userProfile?['dob'] != null
             ? DateTime.parse(_userProfile!['dob'])
             : null;
+    bool isSaving = false;
 
     showModalBottomSheet(
       context: context,
@@ -142,151 +169,213 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   left: 20,
                   right: 20,
                 ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Text(
-                      'Edit Profile',
-                      style: GoogleFonts.outfit(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        'Edit Profile',
+                        style: GoogleFonts.outfit(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
                       ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 20),
+                      const SizedBox(height: 20),
 
-                    // DOB Picker
-                    InkWell(
-                      onTap: () async {
-                        final DateTime? picked = await showDatePicker(
-                          context: ctx,
-                          initialDate: selectedDate ?? DateTime.now(),
-                          firstDate: DateTime(1900),
-                          lastDate: DateTime.now(),
-                        );
-                        if (picked != null) {
-                          setModalState(() {
-                            selectedDate = picked;
-                          });
-                        }
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 16,
-                        ),
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.grey),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              selectedDate != null
-                                  ? 'DOB: ${DateFormat('dd MMM yyyy').format(selectedDate!)}'
-                                  : 'Select Date of Birth',
-                              style: GoogleFonts.outfit(fontSize: 16),
-                            ),
-                            const Icon(
-                              Icons.calendar_today,
-                              color: Colors.grey,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    DropdownButtonFormField<String>(
-                      value: selectedGender,
-                      decoration: InputDecoration(
-                        labelText: 'Gender',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      items:
-                          ['Male', 'Female', 'Other']
-                              .map(
-                                (g) =>
-                                    DropdownMenuItem(value: g, child: Text(g)),
-                              )
-                              .toList(),
-                      onChanged: (v) => selectedGender = v,
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            controller: heightController,
-                            keyboardType: TextInputType.number,
-                            decoration: InputDecoration(
-                              labelText: 'Height (cm)',
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
+                      TextField(
+                        controller: nameController,
+                        decoration: InputDecoration(
+                          labelText: 'Name',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: TextField(
-                            controller: weightController,
-                            keyboardType: TextInputType.number,
-                            decoration: InputDecoration(
-                              labelText: 'Weight (kg)',
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      TextField(
+                        controller: phoneController,
+                        keyboardType: TextInputType.phone,
+                        decoration: InputDecoration(
+                          labelText: 'Phone',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-                    ElevatedButton(
-                      onPressed: () async {
-                        final height = double.tryParse(heightController.text);
-                        final weight = double.tryParse(weightController.text);
+                      ),
+                      const SizedBox(height: 16),
 
-                        Map<String, dynamic> updateData = {
-                          'gender': selectedGender,
-                          'height': height,
-                          'weight': weight,
-                        };
-
-                        if (selectedDate != null) {
-                          updateData['dob'] = selectedDate!.toIso8601String();
-                          final now = DateTime.now();
-                          int calculatedAge = now.year - selectedDate!.year;
-                          if (now.month < selectedDate!.month ||
-                              (now.month == selectedDate!.month && now.day < selectedDate!.day)) {
-                            calculatedAge--;
+                      // DOB Picker
+                      InkWell(
+                        onTap: () async {
+                          final DateTime? picked = await showDatePicker(
+                            context: ctx,
+                            initialDate: selectedDate ?? DateTime.now(),
+                            firstDate: DateTime(1900),
+                            lastDate: DateTime.now(),
+                          );
+                          if (picked != null) {
+                            setModalState(() {
+                              selectedDate = picked;
+                            });
                           }
-                          updateData['age'] = calculatedAge;
-                        }
-
-                        await _apiService.updateUserProfile(updateData);
-
-                        if (mounted) {
-                          Navigator.pop(ctx);
-                          await _fetchData();
-                        }
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 16,
+                          ),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.grey),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                selectedDate != null
+                                    ? 'DOB: ${DateFormat('dd MMM yyyy').format(selectedDate!)}'
+                                    : 'Select Date of Birth',
+                                style: GoogleFonts.outfit(fontSize: 16),
+                              ),
+                              const Icon(
+                                  Icons.calendar_today,
+                                  color: Colors.grey,
+                                ),
+                            ],
+                          ),
                         ),
-                        foregroundColor: Colors.white,
                       ),
-                      child: const Text('Save Changes'),
-                    ),
-                  ],
+                      const SizedBox(height: 16),
+
+                      DropdownButtonFormField<String>(
+                        value: selectedGender,
+                        decoration: InputDecoration(
+                          labelText: 'Gender',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        items:
+                            ['Male', 'Female', 'Other']
+                                .map(
+                                  (g) =>
+                                      DropdownMenuItem(value: g, child: Text(g)),
+                                )
+                                .toList(),
+                        onChanged: (v) {
+                          setModalState(() {
+                            selectedGender = v;
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: heightController,
+                              keyboardType: TextInputType.number,
+                              decoration: InputDecoration(
+                                labelText: 'Height (cm)',
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: TextField(
+                              controller: weightController,
+                              keyboardType: TextInputType.number,
+                              decoration: InputDecoration(
+                                labelText: 'Weight (kg)',
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+                      ElevatedButton(
+                        onPressed: isSaving ? null : () async {
+                          final height = double.tryParse(heightController.text);
+                          final weight = double.tryParse(weightController.text);
+
+                          Map<String, dynamic> updateData = {
+                            'name': nameController.text.trim(),
+                            'phone': phoneController.text.trim(),
+                            'gender': selectedGender,
+                            'height': height,
+                            'weight': weight,
+                          };
+
+                          if (selectedDate != null) {
+                            updateData['dob'] = selectedDate!.toIso8601String();
+                            final now = DateTime.now();
+                            int calculatedAge = now.year - selectedDate!.year;
+                            if (now.month < selectedDate!.month ||
+                                (now.month == selectedDate!.month && now.day < selectedDate!.day)) {
+                              calculatedAge--;
+                            }
+                            updateData['age'] = calculatedAge;
+                          }
+
+                          setModalState(() {
+                            isSaving = true;
+                          });
+
+                          final navigator = Navigator.of(ctx);
+                          final scaffoldMessenger = ScaffoldMessenger.of(context);
+
+                          final result = await _apiService.updateUserProfile(updateData);
+
+                          if (mounted) {
+                            if (result['success'] == true) {
+                              setState(() {
+                                _userProfile = result['data'];
+                              });
+                              navigator.pop();
+                              scaffoldMessenger.showSnackBar(
+                                const SnackBar(content: Text('Profile updated successfully')),
+                              );
+                              await _fetchData();
+                            } else {
+                              setModalState(() {
+                                isSaving = false;
+                              });
+                              scaffoldMessenger.showSnackBar(
+                                SnackBar(content: Text(result['error'] ?? 'Update failed')),
+                              );
+                            }
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          foregroundColor: Colors.white,
+                        ),
+                        child: isSaving
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Text('Save Changes'),
+                      ),
+                    ],
+                  ),
                 ),
               );
             },
@@ -426,6 +515,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                       // Detailed Info Section
                       _buildSectionHeader('Personal Details'),
+                      _buildDetailRow(
+                        Icons.badge_outlined,
+                        'User ID',
+                        _userProfile?['userNumber'] ?? 'N/A',
+                      ),
                       _buildDetailRow(
                         Icons.person_outline,
                         'Age',

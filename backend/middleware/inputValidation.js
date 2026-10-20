@@ -32,6 +32,13 @@ const validationErrorHandler = (req, res, next) => {
  * Must run BEFORE validation to clean inputs
  */
 const sanitizeInputs = (req, res, next) => {
+  // Webhook routes intentionally receive a Buffer so their provider signature
+  // can be checked against the exact bytes. Never coerce that Buffer into an
+  // object while sanitizing ordinary JSON requests.
+  if (Buffer.isBuffer(req.body)) {
+    return next();
+  }
+
   // Sanitize MongoDB queries
   if (req.body) {
     req.body = mongoSanitize(req.body);

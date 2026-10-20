@@ -4,14 +4,26 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { calculateAge } = require('../../helpers');
 
+const BCRYPT_ROUNDS = 12;
+const accessTokenExpiry = process.env.JWT_EXPIRY || '8h';
+const normalizeEmail = (value) => String(value || '').trim().toLowerCase();
+const escapeRegex = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const issueAccessToken = (user) => jwt.sign(
+    { user },
+    process.env.JWT_SECRET,
+    { algorithm: 'HS256', expiresIn: accessTokenExpiry }
+);
+
 exports.registerDoctor = async (req, res) => {
     // console.log('Register Doctor Request Body:', JSON.stringify(req.body, null, 2));
     const {
-        firstName, lastName, email, password, personalPhone, hospitalPhone, specialization, experience,
+        firstName, lastName, password, personalPhone, hospitalPhone, specialization, experience,
         education, educationDetails, consultationFee, clinicAddress, bio,
         registrationNumber, medicalCouncil, identityProof, practiceType, consultationModes, weeklyAvailability,
         gender
     } = req.body;
+    const email = normalizeEmail(req.body.email);
 
     try {
         let doctor = await Doctor.findOne({ email });
@@ -48,8 +60,7 @@ exports.registerDoctor = async (req, res) => {
             }
         }
 
-        const salt = await bcrypt.genSalt(10);
-        const passwordHash = await bcrypt.hash(password, salt);
+        const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
 
         // Generate dynamic unique doctorId: DR + YY (2-digit registration year) + RRR (3-digit random number)
         let isUnique = false;
@@ -105,31 +116,20 @@ exports.registerDoctor = async (req, res) => {
             }
         };
 
-        jwt.sign(
-            payload,
-            process.env.JWT_SECRET,
-            { expiresIn: 360000 },
-            (err, token) => {
-                if (err) throw err;
-                res.json({ token, doctorId: doctor.doctorId });
-            }
-        );
+        const token = issueAccessToken(payload.user);
+        return res.status(201).json({ token, doctorId: doctor.doctorId });
     } catch (err) {
         console.error(err.message);
         try {
             const fs = require('fs');
             const path = require('path');
             const logPath = path.join(__dirname, '../../error_logs.txt');
-            const logData = `\n\n[${new Date().toISOString()}] Register Doctor Error:
-Error: ${err.message}
-Stack: ${err.stack}
-Body: ${JSON.stringify(req.body, null, 2)}
-------------------------------------------------`;
+            const logData = `\n[${new Date().toISOString()}] Register Doctor Error: ${err.message}\n`;
             fs.appendFileSync(logPath, logData);
         } catch (fsErr) {
             console.error('Failed to write error log:', fsErr);
         }
-        res.status(500).json({ msg: 'Server error', error: err.message });
+        res.status(500).json({ msg: 'Unable to create doctor account' });
     }
 };
 
@@ -138,7 +138,6 @@ exports.loginDoctor = async (req, res) => {
     const loginKey = username || email;
 
     try {
-        console.log('[DEBUG LOGIN] Attempt:', { loginKey, passwordReceived: password });
         if (!loginKey) {
             return res.status(400).json({ msg: 'Email or Doctor ID is required' });
         }
@@ -177,14 +176,7 @@ exports.loginDoctor = async (req, res) => {
             }
         }
 
-        console.log('[DEBUG LOGIN] DB Lookup Result:', { 
-            found: !!targetUser, 
-            email: targetUser ? targetUser.email : null,
-            role
-        });
-
         const isMatch = await bcrypt.compare(password, targetUser.passwordHash);
-        console.log('[DEBUG LOGIN] Password Match Result:', { isMatch });
         if (!isMatch) {
             return res.status(400).json({ msg: 'Invalid Credentials' });
         }
@@ -198,23 +190,16 @@ exports.loginDoctor = async (req, res) => {
             }
         };
 
-        jwt.sign(
-            payload,
-            process.env.JWT_SECRET,
-            { expiresIn: 360000 },
-            (err, token) => {
-                if (err) throw err;
-                res.json({ token });
-            }
-        );
+        return res.json({ token: issueAccessToken(payload.user) });
     } catch (err) {
         console.error(err.message);
-        res.status(500).json({ msg: 'Server error', error: err.message });
+        res.status(500).json({ msg: 'Unable to sign in' });
     }
 };
 
 exports.registerUser = async (req, res) => {
-    const { name, email, phone, password, role } = req.body;
+    const { name, phone, password } = req.body;
+    const email = normalizeEmail(req.body.email);
 
     try {
         let user = await User.findOne({ email });
@@ -222,8 +207,7 @@ exports.registerUser = async (req, res) => {
             return res.status(400).json({ msg: 'User already exists' });
         }
 
-        const salt = await bcrypt.genSalt(10);
-        const passwordHash = await bcrypt.hash(password, salt);
+        const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
 
         // Generate dynamic unique userNumber: U + YY (2-digit registration year) + RRR (3-digit random number)
         let isUnique = false;
@@ -245,7 +229,9 @@ exports.registerUser = async (req, res) => {
             email,
             phone,
             passwordHash,
-            role,
+            // Public registration can only create a patient account. Staff and
+            // administrators are provisioned through protected workflows.
+            role: 'USER',
             dob: req.body.dob,
             age: req.body.dob ? calculateAge(req.body.dob) : undefined,
             // Doctor Fields
@@ -270,23 +256,16 @@ exports.registerUser = async (req, res) => {
             }
         };
 
-        jwt.sign(
-            payload,
-            process.env.JWT_SECRET,
-            { expiresIn: 360000 },
-            (err, token) => {
-                if (err) throw err;
-                res.json({ token, userNumber: user.userNumber });
-            }
-        );
+        return res.status(201).json({ token: issueAccessToken(payload.user), userNumber: user.userNumber });
     } catch (err) {
         console.error(err.message);
-        res.status(500).json({ msg: 'Server error', error: err.message });
+        res.status(500).json({ msg: 'Unable to create account' });
     }
 };
 
 exports.loginUser = async (req, res) => {
-    const { email, password } = req.body;
+    const { password } = req.body;
+    const email = normalizeEmail(req.body.email);
 
     try {
         if (!email) {
@@ -319,18 +298,10 @@ exports.loginUser = async (req, res) => {
             }
         };
 
-        jwt.sign(
-            payload,
-            process.env.JWT_SECRET,
-            { expiresIn: 360000 },
-            (err, token) => {
-                if (err) throw err;
-                res.json({ token });
-            }
-        );
+        return res.json({ token: issueAccessToken(payload.user) });
     } catch (err) {
         console.error(err.message);
-        res.status(500).json({ msg: 'Server error', error: err.message });
+        res.status(500).json({ msg: 'Unable to sign in' });
     }
 };
 
@@ -341,23 +312,20 @@ exports.forgotPassword = async (req, res) => {
             return res.status(400).json({ msg: 'Email is required' });
         }
 
-        email = email.trim();
-        const emailRegex = new RegExp(`^${email}$`, 'i');
+        email = normalizeEmail(email);
+        const emailRegex = new RegExp(`^${escapeRegex(email)}$`, 'i');
 
         let user = await User.findOne({ email: emailRegex });
         if (!user) {
             user = await Doctor.findOne({ email: emailRegex });
         }
 
-        if (!user) {
-            // For security, usually we don't say if user exists, but for dev we can
-            return res.status(404).json({ msg: 'User not found' });
-        }
-        // Mock email sending behavior
+        // Always return the same response to prevent account enumeration. A
+        // real reset service can send the link only when an account was found.
         // const resetToken = crypto.randomBytes(20).toString('hex');
         // TODO: Send email
 
-        res.json({ msg: 'Password reset link sent to ' + email });
+        res.json({ msg: 'If an account exists, password-reset instructions will be sent.' });
     } catch (err) {
         console.error(err.message);
         res.status(500).json({ msg: 'Server error' });
@@ -373,11 +341,7 @@ exports.getPincodeDetails = async (req, res) => {
         return res.status(400).json({ msg: 'Pincode must be exactly 6 digits' });
     }
     
-    const options = {
-        rejectUnauthorized: false
-    };
-
-    https.get(`https://api.postalpincode.in/pincode/${pincode}`, options, (apiRes) => {
+    https.get(`https://api.postalpincode.in/pincode/${pincode}`, (apiRes) => {
         let data = '';
         apiRes.on('data', (chunk) => {
             data += chunk;

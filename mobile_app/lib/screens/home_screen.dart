@@ -344,7 +344,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                   MaterialPageRoute(
                                     builder: (context) => const ProfileScreen(),
                                   ),
-                                );
+                                ).then((_) => _fetchProfile());
                               },
                               child: CircleAvatar(
                                 radius: 25,

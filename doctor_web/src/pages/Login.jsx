@@ -270,8 +270,10 @@ const Login = () => {
                                         className="w-full mt-2 bg-[#009999] hover:bg-[#007a7a] text-white font-medium py-3 px-4 rounded-[12px] transition-all duration-300 flex justify-center items-center gap-2 active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed disabled:active:scale-100 shadow-sm shadow-[#009999]/20"
                                     >
                                         {isLoginLoading ? (
+                                            <>
                                                 <div className="loader loader-sm loader-white"></div>
                                                 <span>Verifying Access...</span>
+                                            </>
                                         ) : (
                                             <span>Access Doctor Dashboard</span>
                                         )}
@@ -329,8 +331,10 @@ const Login = () => {
                                         className="w-full mt-2 bg-[#009999] hover:bg-[#007a7a] text-white font-medium py-3 px-4 rounded-[12px] transition-all duration-300 flex justify-center items-center gap-2 active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed disabled:active:scale-100 shadow-sm shadow-[#009999]/20"
                                     >
                                         {isForgotLoading ? (
+                                            <>
                                                 <div className="loader loader-sm loader-white"></div>
                                                 <span>Sending Link...</span>
+                                            </>
                                         ) : (
                                             <span>Send Reset Link</span>
                                         )}

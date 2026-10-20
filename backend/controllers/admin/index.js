@@ -8,13 +8,23 @@ const Rating = require('../../models/Rating');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 
+const toSafeAdmin = (admin) => {
+    const result = admin.toObject ? admin.toObject() : { ...admin };
+    delete result.passwordHash;
+    return result;
+};
+
 // Admin Login
 exports.login = async (req, res) => {
-    const { username, password } = req.body;
+    const username = String(req.body.username || '').trim();
+    const { password } = req.body;
     try {
         let admin = await Admin.findOne({ username });
         if (!admin) {
             return res.status(400).json({ msg: 'Invalid Credentials' });
+        }
+        if (!admin.isActive) {
+            return res.status(403).json({ msg: 'This administrator account is inactive' });
         }
 
         const isMatch = await bcrypt.compare(password, admin.passwordHash);
@@ -29,7 +39,10 @@ exports.login = async (req, res) => {
             }
         };
 
-        const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '12h' });
+        const token = jwt.sign(payload, process.env.JWT_SECRET, {
+            algorithm: 'HS256',
+            expiresIn: process.env.JWT_EXPIRY || '8h'
+        });
 
         admin.lastLogin = Date.now();
         await admin.save();
@@ -534,8 +547,7 @@ exports.createAdmin = async (req, res) => {
         let admin = await Admin.findOne({ username });
         if (admin) return res.status(400).json({ msg: 'Admin already exists' });
 
-        const salt = await bcrypt.genSalt(10);
-        const passwordHash = await bcrypt.hash(password, salt);
+        const passwordHash = await bcrypt.hash(password, 12);
 
         admin = new Admin({
             username,
@@ -558,7 +570,7 @@ exports.createAdmin = async (req, res) => {
             metadata: `Created admin ${username} with role ${role}`
         });
 
-        res.json({ msg: 'Admin created successfully', admin });
+        res.status(201).json({ msg: 'Admin created successfully', admin: toSafeAdmin(admin) });
     } catch (err) {
         console.error(err);
         res.status(500).send('Server Error');
@@ -591,7 +603,7 @@ exports.updateAdmin = async (req, res) => {
             metadata: `Updated admin ${admin.username}`
         });
 
-        res.json({ msg: 'Admin updated', admin });
+        res.json({ msg: 'Admin updated', admin: toSafeAdmin(admin) });
     } catch (err) {
         console.error(err);
         res.status(500).send('Server Error');
@@ -617,8 +629,7 @@ exports.changePassword = async (req, res) => {
             return res.status(400).json({ msg: 'Invalid current password' });
         }
 
-        const salt = await bcrypt.genSalt(10);
-        admin.passwordHash = await bcrypt.hash(newPassword, salt);
+        admin.passwordHash = await bcrypt.hash(newPassword, 12);
 
         await admin.save();
 

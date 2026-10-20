@@ -4,7 +4,8 @@
  * Prevents brute force attacks and DoS
  */
 
-const rateLimit = require('express-rate-limit');
+const { rateLimit } = require('express-rate-limit');
+const getClientIp = (req) => req.ip || req.connection?.remoteAddress || req.socket?.remoteAddress || '127.0.0.1';
 // Robust import for RedisStore to handle different package versions/builds
 let RedisStoreLib = require('rate-limit-redis');
 const RedisStore = RedisStoreLib.RedisStore || RedisStoreLib.default || RedisStoreLib;
@@ -86,7 +87,7 @@ const authLimiter = rateLimit({
   },
   keyGenerator: (req) => {
     // Use IP + user agent for better attack detection
-    return `${req.ip || req.connection.remoteAddress}-${req.get('user-agent')}`;
+    return `${getClientIp(req)}-${req.get('user-agent') || 'unknown'}`;
   },
   handler: (req, res) => {
     // Log suspicious activity
@@ -120,7 +121,7 @@ const apiLimiter = rateLimit({
       return `${req.user.id}-api`;
     }
     // Unauthenticated: rate limit by IP
-    return `${req.ip || req.connection.remoteAddress}-api`;
+    return `${getClientIp(req)}-api`;
   }
 });
 
@@ -139,10 +140,9 @@ const paymentLimiter = rateLimit({
   skip: (req) => req.user?.role === 'SUPER_ADMIN',
   keyGenerator: (req) => {
     // Rate limit by user ID (logged-in required)
-    if (!req.user?.id) {
-      return res.status(401).json({ error: 'Authentication required' });
-    }
-    return `${req.user.id}-payment`;
+    return req.user?.id
+      ? `${req.user.id}-payment`
+      : `${getClientIp(req)}-payment`;
   },
   handler: (req, res) => {
     return res.status(429).json({
@@ -183,7 +183,7 @@ const signupLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req) => {
-    return req.ip || req.connection.remoteAddress;
+    return getClientIp(req);
   }
 });
 
@@ -225,7 +225,7 @@ const uploadLimiter = rateLimit({
  */
 const requestSizeLimit = (req, res, next) => {
   const contentLength = req.get('content-length');
-  const maxBytes = 50 * 1024 * 1024; // 50 MB max
+  const maxBytes = 10 * 1024 * 1024; // Matches the upload limit
 
   if (contentLength && parseInt(contentLength) > maxBytes) {
     return res.status(413).json({

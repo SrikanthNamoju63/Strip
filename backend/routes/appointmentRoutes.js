@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/authMiddleware');
+const { authorize } = auth;
 const {
     bookAppointment,
     getUserAppointments,
@@ -16,18 +17,18 @@ const {
 } = require('../controllers/appointments');
 
 // All appointment routes should be protected
-router.post('/', auth, bookAppointment);
-router.get('/my', auth, getUserAppointments);
-router.get('/:id', auth, getAppointmentById); // Get By ID (Order matters, place after specific routes if needed, but numeric/oid usually safe)
-router.post('/:id/cancel', auth, cancelAppointment);
-router.post('/:id/reschedule', auth, rescheduleAppointment); // explicit import from line 11
+router.post('/', auth, authorize('USER'), bookAppointment);
+router.get('/my', auth, authorize('USER'), getUserAppointments);
+router.get('/:id', auth, authorize('USER', 'DOCTOR', 'SUPER_ADMIN', 'VERIFICATION_ADMIN', 'FINANCE_ADMIN', 'SUPPORT_ADMIN'), getAppointmentById);
+router.post('/:id/cancel', auth, authorize('USER', 'DOCTOR', 'SUPER_ADMIN', 'VERIFICATION_ADMIN', 'FINANCE_ADMIN', 'SUPPORT_ADMIN'), cancelAppointment);
+router.post('/:id/reschedule', auth, authorize('USER'), rescheduleAppointment);
 router.post('/scan', auth, require('../middleware/checkRole')(['DOCTOR']), scanAppointment); // Scan
-router.get('/doctor/:doctorId', auth, getDoctorAppointments);
+router.get('/doctor/:doctorId', auth, authorize('DOCTOR', 'SUPER_ADMIN', 'VERIFICATION_ADMIN', 'FINANCE_ADMIN', 'SUPPORT_ADMIN'), getDoctorAppointments);
 
 // Doctor-specific appointment management
 router.post('/:appointmentId/consultation-notes', auth, require('../middleware/checkRole')(['DOCTOR']), addConsultationNotes);
 router.post('/:appointmentId/prescriptions', auth, require('../middleware/checkRole')(['DOCTOR']), addPrescriptions);
 router.post('/:appointmentId/complete', auth, require('../middleware/checkRole')(['DOCTOR']), completeAppointment);
-router.get('/doctor/:doctorId/stats', auth, getDoctorStats);
+router.get('/doctor/:doctorId/stats', auth, authorize('DOCTOR', 'SUPER_ADMIN', 'VERIFICATION_ADMIN', 'FINANCE_ADMIN', 'SUPPORT_ADMIN'), getDoctorStats);
 
 module.exports = router;

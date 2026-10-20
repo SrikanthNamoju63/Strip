@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/authMiddleware');
+const { authorize } = auth;
+const { uploadLimiter } = require('../middleware/rateLimiting');
 const { 
     getUserProfile, 
     updateUserProfile,
@@ -26,10 +28,13 @@ const {
     markReminderSeen
 } = require('../controllers/user/userController');
 
+// Patient health records must not be reachable by another authenticated role.
+router.use(auth, authorize('USER'));
+
 // Profile Management
 router.get('/me', auth, getUserProfile);
 router.put('/me', auth, updateUserProfile);
-router.post('/me/avatar', auth, require('../config/multer').single('image'), require('../controllers/user/userController').uploadProfileImage);
+router.post('/me/avatar', auth, uploadLimiter, require('../config/multer').single('image'), require('../controllers/user/userController').uploadProfileImage);
 
 // Appointments
 router.get('/appointments', auth, getMyAppointments);
@@ -58,7 +63,7 @@ router.put('/emergency-contacts/:contactId', auth, updateEmergencyContact);
 router.delete('/emergency-contacts/:contactId', auth, deleteEmergencyContact);
 
 // Medical Reports
-router.post('/medical-reports', auth, require('../config/multer').single('report'), uploadMedicalReport);
+router.post('/medical-reports', auth, uploadLimiter, require('../config/multer').single('report'), uploadMedicalReport);
 router.get('/medical-reports', auth, getMedicalReports);
 
 // Health Data & Analytics

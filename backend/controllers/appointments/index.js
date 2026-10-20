@@ -248,6 +248,10 @@ exports.getUserAppointments = async (req, res) => {
 // @access  Private
 exports.getDoctorAppointments = async (req, res) => {
     try {
+        const isAdmin = String(req.user.role || '').includes('ADMIN');
+        if (!isAdmin && req.user.id !== req.params.doctorId) {
+            return res.status(403).json({ msg: 'You can only view your own appointment schedule' });
+        }
         const { date } = req.query;
         let query = { 
             doctorId: req.params.doctorId,
@@ -294,6 +298,15 @@ exports.getAppointmentById = async (req, res) => {
 
         if (!appointment) {
             return res.status(404).json({ msg: 'Appointment not found' });
+        }
+
+        const isAdmin = String(req.user.role || '').includes('ADMIN');
+        const isOwner = appointment.userId?._id?.toString() === req.user.id ||
+            appointment.userId?.toString() === req.user.id;
+        const isAssignedDoctor = appointment.doctorId?._id?.toString() === req.user.id ||
+            appointment.doctorId?.toString() === req.user.id;
+        if (!isAdmin && !isOwner && !isAssignedDoctor) {
+            return res.status(403).json({ msg: 'You are not authorized to view this appointment' });
         }
         res.json(appointment);
     } catch (err) {
@@ -799,6 +812,10 @@ exports.completeAppointment = async (req, res) => {
 exports.getDoctorStats = async (req, res) => {
     try {
         const doctorId = req.params.doctorId;
+        const isAdmin = String(req.user.role || '').includes('ADMIN');
+        if (!isAdmin && req.user.id !== doctorId) {
+            return res.status(403).json({ msg: 'You can only view your own statistics' });
+        }
         const { period = '30days' } = req.query;
 
         let dateFilter = {};

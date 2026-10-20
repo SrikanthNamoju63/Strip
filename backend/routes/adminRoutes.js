@@ -1,6 +1,9 @@
 const express = require('express');
 const router = express.Router();
+const { body } = require('express-validator');
 const adminAuth = require('../middleware/adminAuth');
+const { authLimiter, adminActionLimiter } = require('../middleware/rateLimiting');
+const { validationErrorHandler } = require('../middleware/inputValidation');
 const {
     login,
     getStats,
@@ -22,11 +25,22 @@ const auditController = require('../controllers/misc/auditController');
 const checkPermission = require('../middleware/rbac');
 
 // Public
-router.post('/login', adminController.login);
+router.post('/login', authLimiter, [
+  body('username').trim().isLength({ min: 3, max: 80 }).withMessage('Username is required'),
+  body('password').isString().isLength({ min: 1, max: 256 }).withMessage('Password is required'),
+  validationErrorHandler
+], adminController.login);
 
 // Protected
 router.get('/stats', adminAuth, adminController.getStats);
-router.post('/change-password', adminAuth, adminController.changePassword);
+router.post('/change-password', adminAuth, adminActionLimiter, [
+  body('currentPassword').isString().isLength({ min: 1, max: 256 }),
+  body('newPassword')
+    .isString().isLength({ min: 12, max: 256 })
+    .matches(/[A-Z]/).matches(/[a-z]/).matches(/[0-9]/).matches(/[!@#$%^&*]/)
+    .withMessage('New password does not meet the password policy'),
+  validationErrorHandler
+], adminController.changePassword);
 
 // Doctor Management
 router.get('/doctors', adminAuth, checkPermission(['SUPER_ADMIN', 'VERIFICATION_ADMIN']), adminController.getDoctors);

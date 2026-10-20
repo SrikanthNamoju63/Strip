@@ -3,6 +3,17 @@ const Doctor = require('../../models/Doctor');
 const Appointment = require('../../models/Appointment');
 const auditService = require('../../services/misc/auditService');
 
+// Never expose credentials, identity documents, bank/KYC fields, or internal
+// moderation state in the public doctor directory.
+const PUBLIC_DOCTOR_FIELDS = [
+    'name', 'doctorId', 'doctorPhoto', 'specialization', 'experience',
+    'education', 'bio', 'consultationFee', 'consultationModes', 'languages',
+    'facilities', 'clinicAddress', 'weeklyAvailability', 'availableHours',
+    'genderPreference', 'ratings', 'isVerified'
+].join(' ');
+
+const escapeRegex = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 // @desc    Register a new doctor (or create doctor profile)
 // @route   POST api/doctors
 // @access  Public (or Private if linked to User auth)
@@ -11,7 +22,6 @@ exports.registerDoctor = async (req, res) => {
         firstName,
         lastName,
         name,
-        email,
         password, // Changed from phone/etc to destructure properly
         phone,
         personalPhone,
@@ -37,6 +47,7 @@ exports.registerDoctor = async (req, res) => {
         availableHours,
         gender
     } = req.body;
+    const email = String(req.body.email || '').trim().toLowerCase();
 
     try {
         let doctor = await Doctor.findOne({ email });
@@ -73,8 +84,7 @@ exports.registerDoctor = async (req, res) => {
         }
 
         // Hash Password
-        const salt = await bcrypt.genSalt(10);
-        const passwordHash = await bcrypt.hash(password, salt);
+        const passwordHash = await bcrypt.hash(password, 12);
 
         // Generate dynamic unique doctorId: DR + YY (2-digit registration year) + RRR (3-digit random number)
         let isUnique = false;
@@ -150,11 +160,14 @@ exports.registerDoctor = async (req, res) => {
 
         const doctorObj = doctor.toObject();
         delete doctorObj.passwordHash;
+        delete doctorObj.identityProof;
+        delete doctorObj.documents;
+        delete doctorObj.bankDetails;
 
-        res.json(doctorObj);
+        res.status(201).json(doctorObj);
     } catch (err) {
         console.error('Register Doctor Error:', err.message);
-        res.status(500).send('Server Error: ' + err.message);
+        res.status(500).send('Unable to create doctor profile');
     }
 };
 
@@ -163,18 +176,10 @@ exports.registerDoctor = async (req, res) => {
 // @access  Public / Admin
 exports.getAllDoctors = async (req, res) => {
     try {
-        const { status, sort, verified } = req.query;
-        let query = {};
-
-        // Filter by Verification Status
-        if (status) {
-            query.verificationStatus = status.toUpperCase();
-        }
-
-        // Backward compatibility for 'verified=true' query if used by frontend
-        if (verified === 'true') {
-            query.verificationStatus = 'VERIFIED';
-        }
+        const { sort } = req.query;
+        // This endpoint is public. Admin filtering belongs to /api/admin, so a
+        // caller cannot enumerate pending, rejected, or suspended doctors.
+        const query = { verificationStatus: 'VERIFIED', isActive: true };
 
         // Sort logic
         let sortOption = { createdAt: -1 };
@@ -190,10 +195,11 @@ exports.getAllDoctors = async (req, res) => {
         // For now transparency is fine, but typically filtering suspended ones for public.
         // Assuming this endpoint is used by Admin mostly or public search uses 'searchDoctors'
 
+        const requestedLimit = Number.parseInt(req.query.limit, 10);
         const doctors = await Doctor.find(query)
-            .select('-passwordHash')
+            .select(PUBLIC_DOCTOR_FIELDS)
             .sort(sortOption)
-            .limit(parseInt(req.query.limit) || 0);
+            .limit(Number.isFinite(requestedLimit) ? Math.min(Math.max(requestedLimit, 1), 100) : 50);
 
         res.json(doctors);
     } catch (err) {
@@ -207,7 +213,11 @@ exports.getAllDoctors = async (req, res) => {
 // @access  Public
 exports.getDoctorById = async (req, res) => {
     try {
-        const doctor = await Doctor.findById(req.params.id);
+        const doctor = await Doctor.findOne({
+            _id: req.params.id,
+            verificationStatus: 'VERIFIED',
+            isActive: true
+        }).select(PUBLIC_DOCTOR_FIELDS);
         if (!doctor) {
             return res.status(404).json({ msg: 'Doctor not found' });
         }
@@ -505,6 +515,14 @@ exports.addSlots = async (req, res) => {
             return res.status(404).json({ msg: 'Doctor not found' });
         }
 
+        if (doctor.id !== req.user.id) {
+            return res.status(403).json({ msg: 'You can only manage your own availability' });
+        }
+
+        if (!date || !time || Number.isNaN(new Date(date).getTime()) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(time)) {
+            return res.status(400).json({ msg: 'Provide a valid date and time in HH:MM format' });
+        }
+
         // Add slot
         doctor.availableSlots.push({ date, time });
         await doctor.save();
@@ -534,7 +552,13 @@ exports.getCurrentDoctor = async (req, res) => {
             return res.status(404).json({ msg: 'Doctor not found' });
         }
         console.log('Current Doctor Photo:', doctor.doctorPhoto);
-        res.json(doctor);
+        const doctorObj = doctor.toObject();
+        delete doctorObj.passwordHash;
+        if (doctorObj.bankDetails?.accountNumber) {
+            doctorObj.bankDetails.accountNumber = `••••${String(doctorObj.bankDetails.accountNumber).slice(-4)}`;
+        }
+        if (doctorObj.bankDetails?.panNumber) delete doctorObj.bankDetails.panNumber;
+        res.json(doctorObj);
     } catch (err) {
         console.error(err.message);
         res.status(500).send('Server Error');
@@ -666,8 +690,8 @@ exports.searchDoctors = async (req, res) => {
         let { query, location, date } = req.body;
 
         // Sanitize inputs
-        if (query) query = query.trim();
-        if (location) location = location.trim();
+        if (query) query = query.trim().slice(0, 100);
+        if (location) location = location.trim().slice(0, 100);
 
         let dbQuery = {
             verificationStatus: 'VERIFIED',
@@ -677,7 +701,7 @@ exports.searchDoctors = async (req, res) => {
 
         // If 'query' is provided (specialization, symptoms, name), search in relevant fields
         if (query) {
-            const regex = new RegExp(query, 'i'); // Case-insensitive
+            const regex = new RegExp(escapeRegex(query), 'i');
             dbQuery.$or = [
                 { name: regex },
                 { specialization: regex },
@@ -689,7 +713,7 @@ exports.searchDoctors = async (req, res) => {
 
         // Location filtering
         if (location) {
-            const locRegex = new RegExp(location, 'i');
+            const locRegex = new RegExp(escapeRegex(location), 'i');
             const locationQuery = {
                 $or: [
                     { 'clinicAddress.city': locRegex },
@@ -718,7 +742,7 @@ exports.searchDoctors = async (req, res) => {
         }
 
         // 1. Initial Fetch
-        let doctors = await Doctor.find(dbQuery).select('-passwordHash');
+        let doctors = await Doctor.find(dbQuery).select(PUBLIC_DOCTOR_FIELDS).limit(100);
 
         // 2. Filter by Date Availability (Application Level filtering easier for complex array structure)
         if (date) {
@@ -1062,6 +1086,12 @@ exports.getPatientRecords = async (req, res) => {
             .sort({ appointmentDate: -1 })
             .limit(20);
 
+        // A doctor may access clinical records only for a patient with whom
+        // they have an appointment. This prevents patient-ID enumeration.
+        if (appointments.length === 0) {
+            return res.status(403).json({ success: false, msg: 'No care relationship exists for this patient' });
+        }
+
         // Get health readings for this patient
         const healthReadings = await HealthReading.find({
             userId
@@ -1136,8 +1166,8 @@ exports.markNotificationAsRead = async (req, res) => {
     try {
         const Notification = require('../../models/Notification');
 
-        const notification = await Notification.findByIdAndUpdate(
-            req.params.id,
+        const notification = await Notification.findOneAndUpdate(
+            { _id: req.params.id, recipientId: req.user.id, recipientType: 'DOCTOR' },
             { isRead: true, readAt: new Date() },
             { new: true }
         );
@@ -1239,6 +1269,56 @@ exports.deleteDoctorStaff = async (req, res) => {
 
         await Staff.findByIdAndDelete(req.params.staffId);
         res.json({ msg: 'Staff member deleted' });
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server Error');
+    }
+};
+
+// @desc    Update a staff member's details
+// @route   PUT api/doctors/me/staff/:staffId
+// @access  Private (Doctor only)
+exports.updateDoctorStaff = async (req, res) => {
+    const { name, email, phone, password, role } = req.body;
+
+    try {
+        const Staff = require('../../models/Staff');
+        const staff = await Staff.findOne({ _id: req.params.staffId, doctorId: req.user.id });
+        if (!staff) {
+            return res.status(404).json({ msg: 'Staff member not found' });
+        }
+
+        if (email && email !== staff.email) {
+            // Check if email already registered as staff
+            const existingStaff = await Staff.findOne({ email });
+            if (existingStaff) {
+                return res.status(400).json({ msg: 'Staff email already registered' });
+            }
+
+            // Check if email already registered as doctor
+            const Doctor = require('../../models/Doctor');
+            const doctor = await Doctor.findOne({ email });
+            if (doctor) {
+                return res.status(400).json({ msg: 'Email already registered as a doctor' });
+            }
+            staff.email = email;
+        }
+
+        if (name) staff.name = name;
+        if (phone) staff.phone = phone;
+        if (role) staff.role = role;
+
+        if (password) {
+            const salt = await bcrypt.genSalt(10);
+            staff.passwordHash = await bcrypt.hash(password, salt);
+        }
+
+        await staff.save();
+
+        const staffObj = staff.toObject();
+        delete staffObj.passwordHash;
+
+        res.json(staffObj);
     } catch (err) {
         console.error(err.message);
         res.status(500).send('Server Error');

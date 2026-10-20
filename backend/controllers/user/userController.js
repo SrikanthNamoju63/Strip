@@ -26,27 +26,37 @@ exports.getUserProfile = async (req, res) => {
 // @access  Private
 exports.updateUserProfile = async (req, res) => {
     try {
-        const { name, age, dob, height, weight, gender, bloodGroup, address, alcoholic, smoking } = req.body;
+        console.log('[UserController] updateUserProfile body:', req.body);
+        const { name, phone, age, dob, height, weight, gender, bloodGroup, address, alcoholic, smoking } = req.body;
 
         const user = await User.findById(req.user.id);
         if (!user) return res.status(404).json({ msg: 'User not found' });
 
         if (name) user.name = name;
-        if (age) user.age = age;
+        if (phone && phone !== user.phone) {
+            const existingUser = await User.findOne({ phone, _id: { $ne: req.user.id } });
+            if (existingUser) {
+                console.log('[UserController] Phone already in use:', phone);
+                return res.status(400).json({ msg: 'Phone number already in use by another user' });
+            }
+            user.phone = phone;
+        }
+        if (age !== undefined) user.age = age;
         if (dob) {
             user.dob = new Date(dob);
             const { calculateAge } = require('../../helpers');
             user.age = calculateAge(dob);
         }
-        if (height) user.height = height;
-        if (weight) user.weight = weight;
-        if (gender) user.gender = gender;
-        if (bloodGroup) user.bloodGroup = bloodGroup;
+        if (height !== undefined) user.height = height;
+        if (weight !== undefined) user.weight = weight;
+        if (gender !== undefined) user.gender = gender;
+        if (bloodGroup !== undefined) user.bloodGroup = bloodGroup;
         if (alcoholic !== undefined) user.alcoholic = alcoholic;
         if (smoking !== undefined) user.smoking = smoking;
         if (address) user.address = { ...user.address, ...address };
 
         await user.save();
+        console.log('[UserController] Updated user profile successfully:', user._id);
         res.json(user);
     } catch (err) {
         console.error('[UserController] Error:', err.message);

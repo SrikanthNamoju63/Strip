@@ -17,11 +17,9 @@ const compression = require('compression');
 
 // Custom security middleware
 const securityHeaders = require('./middleware/securityHeaders');
-// const { corsMiddleware, corsErrorHandler } = require('./middleware/corsConfig'); // Commented out for debugging
-const cors = require('cors'); // Direct import
+const { corsMiddleware, corsErrorHandler } = require('./middleware/corsConfig');
 const { sanitizeInputs } = require('./middleware/inputValidation');
 const {
-  authLimiter,
   apiLimiter,
   paymentLimiter,
   requestSizeLimit
@@ -35,6 +33,7 @@ const {
 // ... (imports remain)
 
 const app = express();
+app.disable('x-powered-by');
 
 console.log('Starting server...');
 
@@ -42,21 +41,19 @@ console.log('Starting server...');
 // PHASE 1: SECURITY MIDDLEWARE STACK
 // ============================================
 
-// 0. CORS - Critical: Must be first
-app.use(cors({
-  origin: true, // Allow all origins
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-Request-ID', 'x-auth-token']
-}));
-// app.options('*', cors()); // Enable pre-flight for all routes (Removed: Causes PathError)
+// 0. CORS - Critical: must be evaluated before any API route.
+app.use(corsMiddleware);
+
+// Payment providers sign the exact request bytes. This must run before the
+// JSON parser so a webhook cannot be verified against a re-serialized body.
+app.use('/api/payments/webhook', express.raw({ type: 'application/json', limit: '256kb' }));
 
 // 1. Request size limiting (DoS protection)
 app.use(requestSizeLimit);
 
 // 2. Body parsing with size limits
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ limit: '50mb', extended: true }));
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ limit: '1mb', extended: true }));
 
 // 3. Compression
 app.use(compression());
@@ -64,24 +61,28 @@ app.use(compression());
 // 4. Security headers (Helmet + HSTS + CSP + X-Frame-Options)
 app.use(securityHeaders);
 
-// 5. CORS configuration (whitelist only)
-// app.use(corsMiddleware); // Commented out
-// app.use(corsErrorHandler); // Commented out
-
-// 6. Input sanitization (before validation)
+// 5. Input sanitization (before validation)
 app.use(sanitizeInputs);
 
-// Static files
-app.use('/uploads', express.static(require('path').join(__dirname, 'uploads')));
+// Uploaded medical reports must never be reachable through the public static
+// mount. Profile and gallery images continue to be served with safe headers.
+app.use('/uploads/reports', (req, res) => res.status(403).json({ error: 'Forbidden' }));
+app.use('/uploads', express.static(require('path').join(__dirname, 'uploads'), {
+  dotfiles: 'deny',
+  index: false,
+  fallthrough: false,
+  setHeaders(res) {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Cache-Control', 'public, max-age=86400, immutable');
+  }
+}));
 
 // ============================================
 // RATE LIMITING BY ENDPOINT TYPE
 // ============================================
 
-// Auth endpoints: 5 attempts per 15 min
-app.use('/api/auth/login', authLimiter);
-app.use('/api/auth/register', authLimiter);
-app.use('/api/session/login', authLimiter);
+// Auth routes attach dedicated login, signup, and password-reset limiters so
+// registration is not accidentally counted as a failed login attempt.
 
 // General API: 100 requests per minute
 app.use('/api/', apiLimiter);
@@ -114,6 +115,15 @@ app.get('/health', (req, res) => {
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
     database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
+  });
+});
+
+// This path is used by the Docker health check and must remain cheap and
+// unauthenticated. It exposes no configuration or patient data.
+app.get('/api/health', (req, res) => {
+  res.status(mongoose.connection.readyState === 1 ? 200 : 503).json({
+    status: mongoose.connection.readyState === 1 ? 'OK' : 'DEGRADED',
+    timestamp: new Date().toISOString()
   });
 });
 
@@ -193,10 +203,17 @@ app.use((req, res) => {
 });
 
 // Global error handler (must be last)
+app.use(corsErrorHandler);
 app.use((err, req, res, next) => {
-  console.error('Unhandled error:', err);
-  res.status(err.status || 500).json({
-    error: err.message || 'Internal Server Error',
+  const status = err.status || err.statusCode || 500;
+  if (status >= 500) {
+    console.error('Unhandled error:', err);
+  }
+  if (err.type === 'entity.too.large') {
+    return res.status(413).json({ error: 'Payload too large' });
+  }
+  return res.status(status).json({
+    error: status >= 500 ? 'Internal Server Error' : (err.message || 'Request failed'),
     ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
   });
 });

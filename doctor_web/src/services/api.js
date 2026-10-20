@@ -262,5 +262,10 @@ export const deleteDoctorStaff = async (staffId) => {
     return res.data;
 };
 
+export const updateDoctorStaff = async (staffId, staffData) => {
+    const res = await api.put(`/doctors/me/staff/${staffId}`, staffData);
+    return res.data;
+};
+
 export default api;
 
